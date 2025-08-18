@@ -1,0 +1,47 @@
+{
+  "name": "new-people-stickers-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for creating meme sticker packs with face swap",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "npm run test:error-handling && npm run test:security && npm run test:deployment",
+    "test:error-handling": "node test-error-handling.js",
+    "test:security": "node test-security.js",
+    "test:apis": "node test-apis.js",
+    "test:deployment": "node test-deployment.js",
+    "lint": "echo 'Linting not configured yet' && exit 0",
+    "build": "echo 'Build step completed (no build required for Node.js)'",
+    "postinstall": "echo 'Dependencies installed successfully'",
+    "health": "curl -f http://localhost:$PORT/health || exit 1",
+    "validate-env": "node -e \"require('./src/config/constants'); console.log('Environment validation passed')\"",
+    "deploy:test": "npm run validate-env && npm run test:deployment"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "stickers",
+    "memes",
+    "face-swap",
+    "ai"
+  ],
+  "author": "AIronLab",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-telegram-bot-api": "^0.63.0",
+    "@supabase/supabase-js": "^2.38.0",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "sharp": "^0.33.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
