@@ -8,70 +8,70 @@ const MEME_TEMPLATES = [
     id: '1',
     name: 'Meme Template 1',
     emoji: '😄',
-    imageUrl: 'https://drive.google.com/uc?export=download&id=1M7z1maLqUIssTU0FuxVQuAbcRy45iFMg',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-1.png',
     description: 'Meme template for stickers'
   },
   {
     id: '2',
     name: 'Meme Template 2',
     emoji: '😎',
-    imageUrl: 'https://drive.google.com/uc?export=download&id=1Eh0nMYxI_cFymSiJ-KywkH-l9cFliL5o',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-2.png',
     description: 'Meme template for stickers'
   },
   {
     id: '3',
     name: 'Meme Template 3',
     emoji: '🤪',
-    imageUrl: 'https://drive.google.com/uc?export=download&id=1mFOnGcyv8aM-Ku6y9YQT83J-V32_xdkv',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-3.png',
     description: 'Meme template for stickers'
   },
   {
     id: '4',
     name: 'Meme Template 4',
     emoji: '😏',
-    imageUrl: 'https://drive.google.com/uc?export=download&id=1yuQH7L8G5L6lGiiFPqMqGy7wQxH1m0EI',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-4.png',
     description: 'Meme template for stickers'
   },
   {
     id: '5',
     name: 'Meme Template 5',
     emoji: '🥳',
-    imageUrl: 'https://drive.google.com/uc?export=download&id=1c84RrrMYqVnPaRS20OSWtdQ_L_R93aOk',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-5.png',
     description: 'Meme template for stickers'
   },
   {
     id: '6',
     name: 'Meme Template 6',
     emoji: '🤯',
-    imageUrl: 'https://drive.google.com/uc?export=download&id=1BdqSYtH95IJ_5e8dIy2jM6QYLsZpWQsE',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-6.png',
     description: 'Meme template for stickers'
   },
   {
     id: '7',
     name: 'Meme Template 7',
     emoji: '😂',
-    imageUrl: 'https://drive.google.com/uc?export=download&id=17usAMNogXrIo_TqkkKuX4J58ktvjBHcA',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-7.png',
     description: 'Meme template for stickers'
   },
   {
     id: '8',
     name: 'Meme Template 8',
     emoji: '🔥',
-    imageUrl: 'https://drive.google.com/uc?export=download&id=11gRb8BEEOansTYWKP4VdqCkCC1HrRSWR',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-8.png',
     description: 'Meme template for stickers'
   },
   {
     id: '9',
     name: 'Meme Template 9',
     emoji: '💪',
-    imageUrl: 'https://drive.google.com/uc?export=download&id=172rLv9lG8GUB56UVtHHNn3FA3MZZRt3Y',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-9.png',
     description: 'Meme template for stickers'
   },
   {
     id: '10',
     name: 'Meme Template 10',
     emoji: '🚀',
-    imageUrl: 'https://drive.google.com/uc?export=download&id=1krXoNBuoxe7HHzmMODw04xk7ScokjFm3',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-10.png',
     description: 'Meme template for stickers'
   }
 ];

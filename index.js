@@ -170,10 +170,10 @@ app.get('/admin/test-piapi',
         });
       }
 
-      // Test with real image URLs instead of random generators
+      // Test with GitHub raw URLs that end with proper extension
       const testResult = await piapiService.createFaceSwapTask(
-        'https://drive.google.com/uc?export=download&id=1M7z1maLqUIssTU0FuxVQuAbcRy45iFMg', // real meme template
-        'https://drive.google.com/uc?export=download&id=1Eh0nMYxI_cFymSiJ-KywkH-l9cFliL5o', // another template as source
+        'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-1.png', // target image
+        'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-2.png', // source image
         { maxRetries: 1 }
       );
 
