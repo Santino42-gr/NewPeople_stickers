@@ -170,10 +170,10 @@ app.get('/admin/test-piapi',
         });
       }
 
-      // Test with GitHub raw URLs that end with proper extension
+      // Test with official Piapi example URLs from documentation
       const testResult = await piapiService.createFaceSwapTask(
-        'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/assets/memes/meme-1.png', // target image
-        'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/assets/memes/meme-2.png', // source image
+        'https://i.ibb.co/LnLYwhR/66f41e64b1922.jpg', // target image from Piapi docs
+        'https://i.ibb.co/m9BFL9J/ad61a39afd9079e57a5908c0bd9dd995.jpg', // source image from Piapi docs
         { maxRetries: 1 }
       );
 
