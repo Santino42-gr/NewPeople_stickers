@@ -223,21 +223,66 @@ class StickerService {
           attempt
         });
 
-        const requestData = {
-          user_id: userId,
-          name: packName,
-          sticker: JSON.stringify({
-            sticker: stickerFileId,
-            emoji_list: [emoji],
-            format: 'static'
-          })
+        // Try alternative approach - some APIs prefer non-stringified objects
+        const requestData = new URLSearchParams();
+        requestData.append('user_id', userId.toString());
+        requestData.append('name', packName);
+        
+        // Try direct object format first
+        const stickerObject = {
+          sticker: stickerFileId,
+          emoji_list: [emoji],
+          format: 'static'
         };
+        
+        // For attempt 1, try URLSearchParams with JSON string
+        // For attempt 2+, try different approaches
+        if (attempt === 1) {
+          requestData.append('sticker', JSON.stringify(stickerObject));
+        } else if (attempt === 2) {
+          // Try with individual fields (alternative approach)
+          requestData.delete('sticker');
+          requestData.append('sticker', stickerFileId);
+          requestData.append('emoji_list', JSON.stringify([emoji]));
+          requestData.append('format', 'static');
+        } else {
+          // Attempt 3: back to original format but with validation
+          requestData.delete('sticker');
+          requestData.delete('emoji_list');
+          requestData.delete('format');
+          requestData.append('sticker', JSON.stringify(stickerObject));
+        }
+
+        // Detailed logging for debugging HTTP 400 errors
+        const requestDataEntries = Array.from(requestData.entries());
+        logger.info(`Request payload details (attempt ${attempt}):`, {
+          userId,
+          packName,
+          stickerFileId,
+          emoji,
+          stickerObject,
+          requestDataEntries,
+          requestFormat: attempt === 1 ? 'JSON_STRING' : attempt === 2 ? 'INDIVIDUAL_FIELDS' : 'VALIDATED_JSON',
+          attempt
+        });
 
         const response = await axios.post(`${this.apiUrl}/addStickerToSet`, requestData, {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
           },
           timeout: 30000
+        }).catch(error => {
+          // Enhanced error logging for HTTP 400 debugging
+          logger.error(`Telegram API Error Details:`, {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            headers: error.response?.headers,
+            requestData: requestData,
+            url: `${this.apiUrl}/addStickerToSet`,
+            attempt
+          });
+          throw error;
         });
 
         const duration = Date.now() - startTime;
