@@ -1,0 +1,35 @@
+# Railway Configuration
+# Configuration for New People Stickers Bot deployment
+
+[build]
+# Use nixpacks builder (Railway's default)
+builder = "nixpacks"
+
+[deploy]
+# Start command for the application
+startCommand = "npm start"
+
+# Health check configuration
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+healthcheckInterval = 30
+
+# Restart policy
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Resource configuration (uncomment and adjust based on your Railway plan)
+# memoryLimit = "512Mi"
+# cpuLimit = "500m"
+
+[env]
+# Production environment
+NODE_ENV = "production"
+
+# Node.js optimizations
+NODE_OPTIONS = "--max-old-space-size=512"
+
+# Optional: Custom networking (Railway handles automatically)
+[networking]
+# serviceName = "new-people-stickers-bot"
+# customDomain = "your-domain.com"
