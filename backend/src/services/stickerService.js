@@ -281,15 +281,36 @@ class StickerService {
           timeout: 30000
         }).catch(error => {
           // Enhanced error logging for HTTP 400 debugging
-          logger.error(`Telegram API Error Details:`, {
+          const errorDetails = {
             status: error.response?.status,
             statusText: error.response?.statusText,
             data: error.response?.data,
             headers: error.response?.headers,
-            requestData: requestData,
+            requestDataString: requestData.toString(),
             url: `${this.apiUrl}/addStickerToSet`,
-            attempt
+            attempt,
+            userId,
+            packName,
+            stickerFileId,
+            emoji,
+            errorMessage: error.message,
+            errorCode: error.code,
+            telegramErrorDescription: error.response?.data?.description,
+            telegramErrorCode: error.response?.data?.error_code,
+            requestPayloadSize: requestData.toString().length
+          };
+          
+          logger.error(`Telegram API addStickerToSet Error Details:`, errorDetails);
+          
+          // Also log to console for immediate debugging
+          console.error(`[TELEGRAM API ERROR] addStickerToSet failed:`, {
+            attempt,
+            status: error.response?.status,
+            telegramError: error.response?.data?.description,
+            stickerFileId,
+            emoji
           });
+          
           throw error;
         });
 
@@ -297,7 +318,20 @@ class StickerService {
         logger.logApiCall('Telegram', 'addStickerToSet', duration, true);
 
         if (!response.data.ok) {
-          throw new Error(`Telegram API error: ${response.data.description}`);
+          const telegramError = response.data.description || 'Unknown Telegram error';
+          const errorCode = response.data.error_code;
+          
+          // Log specific Telegram error for debugging
+          logger.error(`Telegram API returned error:`, {
+            description: telegramError,
+            error_code: errorCode,
+            packName,
+            stickerFileId,
+            emoji,
+            attempt
+          });
+          
+          throw new Error(`Telegram API error [${errorCode}]: ${telegramError}`);
         }
 
         logger.info(`Sticker added to set successfully: ${packName}`, {
@@ -316,14 +350,31 @@ class StickerService {
         
         lastError = error;
         
+        // Check for specific Telegram errors and adjust strategy
+        const errorMessage = error.message || '';
+        const isEmojiError = errorMessage.includes('emoji') || errorMessage.includes('STICKER_EMOJI_INVALID');
+        const isFileError = errorMessage.includes('file') || errorMessage.includes('STICKER_INVALID');
+        const isDuplicateError = errorMessage.includes('duplicate') || errorMessage.includes('already exists');
+        
         logger.error(`Failed to add sticker to set: ${packName} (attempt ${attempt}/${maxRetries})`, {
           userId,
           packName,
           stickerFileId,
           error: error.message,
           attempt,
-          duration
+          duration,
+          isEmojiError,
+          isFileError,
+          isDuplicateError,
+          errorType: isEmojiError ? 'EMOJI' : isFileError ? 'FILE' : isDuplicateError ? 'DUPLICATE' : 'UNKNOWN'
         });
+        
+        // For emoji errors, try with a different emoji in next attempt
+        if (isEmojiError && attempt < maxRetries) {
+          const fallbackEmojis = ['😀', '😃', '😄', '😁', '😆'];
+          emoji = fallbackEmojis[(attempt - 1) % fallbackEmojis.length];
+          logger.info(`Emoji error detected, switching to fallback emoji: ${emoji} for next attempt`);
+        }
         
         // If this is not the last attempt, wait before retrying
         if (attempt < maxRetries) {
@@ -468,14 +519,33 @@ class StickerService {
       // Create new sticker set with first sticker
       await this.createNewStickerSet(userId, packName, fileIds[0], emojis[0], title);
 
-      // Add remaining stickers to the set sequentially to avoid rate limiting
+      // Add remaining stickers to the set with improved error handling
+      const failedStickers = [];
+      const fallbackEmojis = ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙'];
+      
       if (fileIds.length > 1) {
         logger.info(`Adding ${fileIds.length - 1} remaining stickers to set: ${packName}`);
         
         for (let i = 1; i < fileIds.length; i++) {
           logger.info(`Adding sticker ${i + 1}/${fileIds.length} to set: ${packName}`);
           
-          await this.addStickerToSet(userId, packName, fileIds[i], emojis[i]);
+          try {
+            await this.addStickerToSet(userId, packName, fileIds[i], emojis[i]);
+          } catch (error) {
+            logger.error(`Failed to add sticker ${i + 1}/${fileIds.length}, adding to retry list:`, {
+              error: error.message,
+              stickerIndex: i,
+              fileId: fileIds[i],
+              originalEmoji: emojis[i]
+            });
+            
+            failedStickers.push({
+              index: i,
+              fileId: fileIds[i],
+              originalEmoji: emojis[i],
+              error: error.message
+            });
+          }
           
           // Add small delay between sticker additions to avoid rate limiting
           if (i < fileIds.length - 1) {
@@ -483,7 +553,39 @@ class StickerService {
           }
         }
         
-        logger.info(`All stickers added to set: ${packName}`);
+        // Retry failed stickers with fallback emojis
+        if (failedStickers.length > 0) {
+          logger.info(`Retrying ${failedStickers.length} failed stickers with fallback emojis`);
+          
+          for (const failedSticker of failedStickers) {
+            let success = false;
+            
+            // Try with multiple fallback emojis
+            for (let emojiAttempt = 0; emojiAttempt < 5 && !success; emojiAttempt++) {
+              const fallbackEmoji = fallbackEmojis[emojiAttempt % fallbackEmojis.length];
+              
+              try {
+                logger.info(`Retrying sticker ${failedSticker.index + 1} with fallback emoji: ${fallbackEmoji}`);
+                await this.addStickerToSet(userId, packName, failedSticker.fileId, fallbackEmoji);
+                success = true;
+                logger.info(`Successfully added sticker ${failedSticker.index + 1} with fallback emoji: ${fallbackEmoji}`);
+              } catch (retryError) {
+                logger.warn(`Fallback emoji ${fallbackEmoji} also failed for sticker ${failedSticker.index + 1}:`, retryError.message);
+              }
+              
+              // Small delay between emoji attempts
+              if (!success && emojiAttempt < 4) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            }
+            
+            if (!success) {
+              logger.error(`Failed to add sticker ${failedSticker.index + 1} even with fallback emojis`);
+            }
+          }
+        }
+        
+        logger.info(`Sticker addition process completed for set: ${packName}`);
       }
 
       const packUrl = this.generateStickerPackUrl(packName);
@@ -493,22 +595,37 @@ class StickerService {
       const stickerSetInfo = await this.getStickerSet(packName);
       
       const duration = Date.now() - startTime;
+      const actualStickers = stickerSetInfo.stickers?.length || 0;
+      const requestedStickers = fileIds.length;
+
+      // Log discrepancy if any stickers are missing
+      if (actualStickers !== requestedStickers) {
+        logger.warn(`Sticker count mismatch for pack ${packName}:`, {
+          requested: requestedStickers,
+          actual: actualStickers,
+          missing: requestedStickers - actualStickers,
+          failedStickers: failedStickers.length
+        });
+      }
 
       logger.info(`Complete sticker pack created: ${packName}`, {
         userId,
         packName,
         packUrl,
-        requestedStickers: fileIds.length,
-        actualStickers: stickerSetInfo.stickers?.length || 0,
+        requestedStickers,
+        actualStickers,
+        success: actualStickers === requestedStickers,
         duration
       });
 
       return {
         packName,
         packUrl,
-        stickerCount: stickerSetInfo.stickers?.length || fileIds.length,
-        requestedStickers: fileIds.length,
-        actualStickers: stickerSetInfo.stickers?.length || 0,
+        stickerCount: actualStickers,
+        requestedStickers,
+        actualStickers,
+        success: actualStickers === requestedStickers,
+        failedStickers: failedStickers.length,
         fileIds,
         title
       };
