@@ -11,7 +11,7 @@ const validators = require('../utils/validators');
 class PiapiService {
   constructor() {
     this.apiKey = process.env.PIAPI_API_KEY;
-    this.baseUrl = process.env.PIAPI_BASE_URL || 'https://api.piapi.ai/api/v1';
+    this.baseUrl = process.env.PIAPI_BASE_URL || 'https://api.piapi.ai';
     
     if (!this.apiKey || this.apiKey === 'your_piapi_api_key') {
       logger.warn('Piapi API key not configured');
@@ -23,7 +23,7 @@ class PiapiService {
     this.client = axios.create({
       baseURL: this.baseUrl,
       headers: {
-        'X-Api-Key': this.apiKey,
+        'x-api-key': this.apiKey,
         'Content-Type': 'application/json'
       },
       timeout: 30000 // 30 seconds default timeout
@@ -91,7 +91,7 @@ class PiapiService {
         });
 
         const response = await errorHandler.safeExecuteWithRetries(
-          async () => await this.client.post('/task', taskData),
+          async () => await this.client.post('/api/v1/task', taskData),
           null,
           1
         );
@@ -102,8 +102,8 @@ class PiapiService {
         // Handle the actual API response format
         const responseData = response.data;
         
-        if (responseData.code !== 200) {
-          throw new Error(`Piapi API error: ${responseData.message || 'Unknown error'}`);
+        if (responseData.code && responseData.code !== 200) {
+          throw new Error(`Piapi API error (${responseData.code}): ${responseData.message || responseData.data?.error?.message || 'Unknown error'}`);
         }
         
         const taskId = responseData.data?.task_id;
@@ -176,7 +176,7 @@ class PiapiService {
       logger.info(`Checking task status: ${taskId}`);
 
       const response = await errorHandler.safeExecuteWithRetries(
-        async () => await this.client.get(`/task/${taskId}`),
+        async () => await this.client.get(`/api/v1/task/${taskId}`),
         null,
         2
       );
@@ -186,8 +186,8 @@ class PiapiService {
       
       const responseData = response.data;
       
-      if (responseData.code !== 200) {
-        throw new Error(`Piapi API error: ${responseData.message || 'Unknown error'}`);
+      if (responseData.code && responseData.code !== 200) {
+        throw new Error(`Piapi API error (${responseData.code}): ${responseData.message || responseData.data?.error?.message || 'Unknown error'}`);
       }
       
       const status = responseData.data?.status || 'unknown';

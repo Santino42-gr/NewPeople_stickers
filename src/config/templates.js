@@ -91,9 +91,11 @@ const validateTemplate = (template) => {
     throw new Error(`Invalid emoji for template ${template.id}: ${template.emoji}`);
   }
   
-  // Validate URL format
-  if (!template.imageUrl.includes('drive.google.com')) {
-    throw new Error(`Invalid Google Drive URL for template ${template.id}`);
+  // Validate URL format (basic URL validation)
+  try {
+    new URL(template.imageUrl);
+  } catch (error) {
+    throw new Error(`Invalid URL for template ${template.id}: ${template.imageUrl}`);
   }
   
   return true;
