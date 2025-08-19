@@ -35,33 +35,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// Security middleware - Enhanced configuration
+// Security middleware - Simplified for deployment
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:", "*.telegram.org", "*.piapi.ai"],
-      connectSrc: ["'self'", "https:", "*.telegram.org", "*.piapi.ai"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      baseUri: ["'self'"],
-      formAction: ["'self'"],
-      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? true : false
-    },
-    reportOnly: false
-  },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true
-  },
-  noSniff: true,
-  xssFilter: true,
-  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-  crossOriginEmbedderPolicy: false, // Allow Telegram webhooks
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  contentSecurityPolicy: false, // Disable CSP temporarily for deployment
+  crossOriginEmbedderPolicy: false
 }));
 
 // CORS configuration - Production ready
