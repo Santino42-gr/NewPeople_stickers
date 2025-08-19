@@ -172,8 +172,8 @@ app.get('/admin/test-piapi',
 
       // Test with GitHub raw URLs that end with proper extension
       const testResult = await piapiService.createFaceSwapTask(
-        'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-1.png', // target image
-        'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/public/memes/meme-2.png', // source image
+        'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/assets/memes/meme-1.png', // target image
+        'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/assets/memes/meme-2.png', // source image
         { maxRetries: 1 }
       );
 
