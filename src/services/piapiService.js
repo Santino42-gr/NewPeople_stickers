@@ -99,7 +99,14 @@ class PiapiService {
         const duration = Date.now() - startTime;
         logger.logApiCall('Piapi', 'createTask', duration, true);
         
-        const taskId = response.data.task_id || response.data.id;
+        // Handle the actual API response format
+        const responseData = response.data;
+        
+        if (responseData.code !== 200) {
+          throw new Error(`Piapi API error: ${responseData.message || 'Unknown error'}`);
+        }
+        
+        const taskId = responseData.data?.task_id;
         if (!taskId) {
           throw new Error('No task ID returned from Piapi API');
         }
@@ -108,8 +115,8 @@ class PiapiService {
         
         return {
           taskId,
-          status: response.data.status || 'pending',
-          data: response.data
+          status: responseData.data?.status || 'pending',
+          data: responseData.data
         };
 
       } catch (error) {
@@ -177,8 +184,14 @@ class PiapiService {
       const duration = Date.now() - startTime;
       logger.logApiCall('Piapi', 'getTaskStatus', duration, true);
       
-      const status = response.data.status;
-      const progress = response.data.progress || 0;
+      const responseData = response.data;
+      
+      if (responseData.code !== 200) {
+        throw new Error(`Piapi API error: ${responseData.message || 'Unknown error'}`);
+      }
+      
+      const status = responseData.data?.status || 'unknown';
+      const progress = responseData.data?.progress || 0;
       
       logger.info(`Task ${taskId} status: ${status} (${progress}%)`);
       
@@ -186,9 +199,9 @@ class PiapiService {
         taskId,
         status,
         progress,
-        result: response.data.result,
-        error: response.data.error,
-        data: response.data
+        result: responseData.data?.output,
+        error: responseData.data?.error,
+        data: responseData.data
       };
 
     } catch (error) {
@@ -343,7 +356,7 @@ class PiapiService {
       return {
         taskId: createResponse.taskId,
         status: 'completed',
-        resultUrl: completionResponse.result?.output_url,
+        resultUrl: completionResponse.result?.url || completionResponse.result?.output_url,
         result: completionResponse.result
       };
       
