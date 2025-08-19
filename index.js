@@ -226,6 +226,51 @@ app.get('/admin/piapi-info',
   }
 );
 
+// Test basic Piapi connectivity (just auth check)
+app.get('/admin/piapi-auth-test',
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  async (req, res) => {
+    try {
+      const axios = require('axios');
+      const apiKey = process.env.PIAPI_API_KEY;
+      const baseUrl = process.env.PIAPI_BASE_URL || 'https://api.piapi.ai/api/v1';
+
+      if (!apiKey) {
+        return res.json({
+          success: false,
+          error: 'No API key configured'
+        });
+      }
+
+      // Try a simple request to test authentication
+      const response = await axios.get(`${baseUrl}/account`, {
+        headers: {
+          'X-Api-Key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      });
+
+      res.json({
+        success: true,
+        statusCode: response.status,
+        data: response.data,
+        message: 'API key authentication successful'
+      });
+
+    } catch (error) {
+      res.json({
+        success: false,
+        error: error.message,
+        statusCode: error.response?.status,
+        statusText: error.response?.statusText,
+        responseData: error.response?.data,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+);
+
 // Reset rate limits endpoint (development only)
 if (process.env.NODE_ENV === 'development') {
   app.post('/dev/reset-rate-limits',
