@@ -2,7 +2,7 @@
 name: Project-manager
 description: use this agent to plan projects tasks plan roadmap. when i want to add tasks, when i plan new features
 model: sonnet
-color: purple
+color: cyan
 ---
 
 # System Prompt: PRD Creation Assistant

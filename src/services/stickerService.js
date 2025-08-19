@@ -4,6 +4,7 @@
  */
 
 const axios = require('axios');
+const FormData = require('form-data');
 const logger = require('../utils/logger');
 const errorHandler = require('../utils/errorHandler');
 
@@ -40,7 +41,8 @@ class StickerService {
     const timestamp = Date.now().toString().slice(-8); // Last 8 digits
     const randomSuffix = Math.random().toString(36).substring(2, 8); // Random 6 chars
     
-    const packName = `newpeople_${userId}_${timestamp}_${randomSuffix}_by_NewPeopleStickersBot`;
+    // Use correct bot username from token
+    const packName = `newpeople_${userId}_${timestamp}_${randomSuffix}_by_NewPeopleStickers_bot`;
     
     logger.info(`Generated pack name: ${packName}`, { userId });
     return packName;
@@ -72,14 +74,17 @@ class StickerService {
       // Create form data for file upload
       const formData = new FormData();
       formData.append('user_id', userId.toString());
+      formData.append('sticker_format', 'static');
       
-      // Create blob from buffer for browser compatibility
-      const blob = new Blob([imageBuffer], { type: 'image/webp' });
-      formData.append('sticker', blob, 'sticker.webp');
+      // Append buffer directly as file
+      formData.append('sticker', imageBuffer, {
+        filename: 'sticker.webp',
+        contentType: 'image/webp'
+      });
 
       const response = await axios.post(`${this.apiUrl}/uploadStickerFile`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          ...formData.getHeaders()
         },
         timeout: 30000
       });
