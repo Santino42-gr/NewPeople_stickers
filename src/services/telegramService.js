@@ -330,6 +330,61 @@ class TelegramService {
       return false;
     }
   }
+
+  /**
+   * Send photo to a chat
+   * @param {number} chatId - Chat ID to send photo to
+   * @param {Buffer} photoBuffer - Photo buffer
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} - Message object from Telegram
+   */
+  async sendPhoto(chatId, photoBuffer, options = {}) {
+    if (!this.isConfigured()) {
+      throw errorHandler.createError('Telegram service not configured', 'ConfigurationError', 500);
+    }
+
+    // Validate inputs
+    const chatIdValidation = validators.isValidChatId(chatId);
+    if (!chatIdValidation.valid) {
+      throw errorHandler.createError(chatIdValidation.error, 'ValidationError', 400);
+    }
+
+    if (!Buffer.isBuffer(photoBuffer)) {
+      throw errorHandler.createError('Photo buffer is required', 'ValidationError', 400);
+    }
+
+    const startTime = Date.now();
+    
+    try {
+      logger.info(`Sending photo to chat ${chatId}`, {
+        photoSize: photoBuffer.length,
+        hasCaption: !!options.caption
+      });
+
+      const result = await errorHandler.safeExecuteWithRetries(
+        async () => await this.bot.sendPhoto(chatId, photoBuffer, options),
+        null,
+        2
+      );
+      
+      const duration = Date.now() - startTime;
+      logger.logApiCall('Telegram', 'sendPhoto', duration, true);
+      
+      return result;
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.logApiCall('Telegram', 'sendPhoto', duration, false);
+      
+      const telegramError = errorHandler.handleTelegramError(error, {
+        chatId,
+        photoSize: photoBuffer.length,
+        method: 'sendPhoto'
+      });
+      
+      throw telegramError;
+    }
+  }
 }
 
 // Export singleton instance
