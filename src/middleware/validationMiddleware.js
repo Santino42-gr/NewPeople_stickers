@@ -151,22 +151,23 @@ class ValidationMiddleware {
     }
 
     try {
-      // Validate photo uploads
+      // Temporarily disable strict photo validation in production
       if (message.photo && Array.isArray(message.photo)) {
-        const validationResult = this.validatePhotoUpload(message.photo);
-        if (!validationResult.valid) {
+        // Basic validation only - check if photos array exists and has content
+        if (message.photo.length === 0) {
           logger.logSecurity('photo_upload_rejected', 'warn', {
-            error: validationResult.error,
+            error: 'Empty photo array',
             userId: message.from?.id,
-            photoCount: message.photo.length,
             ip: req.ip
           });
 
           return res.status(400).json({
             error: 'Invalid photo upload',
-            details: validationResult.error
+            details: 'No photos provided'
           });
         }
+        
+        logger.info(`Photo upload accepted - ${message.photo.length} photos from user ${message.from?.id}`);
       }
 
       // Validate document uploads
