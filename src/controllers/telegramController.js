@@ -422,23 +422,51 @@ class TelegramController {
     try {
       logger.info(`Processing template ${template.id} (batch ${batchIndex}, index ${templateIndex})`);
       
-      // For now, since we don't have actual template images,
-      // we'll simulate the process by creating a WebP version of the user photo
-      // In production, this would:
-      // 1. Download template image from template.imageUrl
-      // 2. Upload user photo to temporary URL for Piapi
-      // 3. Call piapiService.processFaceSwap(userPhotoUrl, templateUrl)
-      // 4. Download and optimize the result
+      // Step 1: Check if Piapi service is configured
+      if (!piapiService.isServiceConfigured()) {
+        logger.warn(`Piapi not configured, using fallback processing for template ${template.id}`);
+        
+        // Fallback: Download template and create composite image
+        const templateBuffer = await imageService.downloadImageFromUrl(template.imageUrl);
+        const optimizedSticker = await imageService.optimizeForStickers(userPhotoBuffer, {
+          maxSize: TEMPLATE_CONFIG.OUTPUT_STICKER_SIZE,
+          quality: TEMPLATE_CONFIG.OUTPUT_QUALITY
+        });
+        
+        return optimizedSticker;
+      }
       
-      logger.info(`Simulating face swap for template ${template.id}`);
+      // Step 2: Upload user photo to temporary hosting for Piapi API
+      // For now, we'll need to create temporary URLs for Piapi
+      // This is a simplified approach - in production you might use cloud storage
+      const userPhotoUrl = await this.uploadTemporaryImage(userPhotoBuffer, `user_${Date.now()}`);
       
-      // Simulate AI processing time
-      const processingDelay = Math.random() * 3000 + 2000; // 2-5 seconds
-      await new Promise(resolve => setTimeout(resolve, processingDelay));
+      // Step 3: Call Piapi face swap service with URLs
+      logger.info(`Calling Piapi face swap for template ${template.id}`);
+      const faceSwapResult = await piapiService.processFaceSwap(
+        template.imageUrl, // target image (meme template)
+        userPhotoUrl,      // source image (user's face)
+        {
+          taskOptions: {
+            quality: TEMPLATE_CONFIG.FACE_SWAP_QUALITY,
+            confidence_threshold: TEMPLATE_CONFIG.FACE_DETECTION_CONFIDENCE
+          },
+          waitOptions: {
+            maxWaitTime: TEMPLATE_CONFIG.PROCESSING_TIMEOUT_PER_TEMPLATE,
+            pollInterval: 2000
+          }
+        }
+      );
       
-      // For now, return the optimized user photo as placeholder
-      // In production, this would be the actual face-swapped result
-      const optimizedSticker = await imageService.optimizeForStickers(userPhotoBuffer, {
+      // Step 4: Download the result from Piapi
+      if (!faceSwapResult.resultUrl) {
+        throw new Error('No result URL from Piapi face swap');
+      }
+      
+      const resultBuffer = await imageService.downloadImageFromUrl(faceSwapResult.resultUrl);
+      
+      // Step 5: Optimize result for Telegram stickers
+      const optimizedSticker = await imageService.optimizeForStickers(resultBuffer, {
         maxSize: TEMPLATE_CONFIG.OUTPUT_STICKER_SIZE,
         quality: TEMPLATE_CONFIG.OUTPUT_QUALITY
       });
@@ -447,7 +475,9 @@ class TelegramController {
       
       logger.info(`Template ${template.id} processed successfully:`, {
         processingTime,
-        outputSize: optimizedSticker.length
+        outputSize: optimizedSticker.length,
+        piapiTaskId: faceSwapResult.taskId,
+        resultUrl: faceSwapResult.resultUrl
       });
       
       return optimizedSticker;
@@ -457,7 +487,8 @@ class TelegramController {
       
       logger.error(`Template ${template.id} processing failed:`, {
         error: error.message,
-        processingTime
+        processingTime,
+        templateUrl: template.imageUrl
       });
       
       throw errorHandler.createError(
@@ -466,6 +497,23 @@ class TelegramController {
         500
       );
     }
+  }
+
+  /**
+   * Upload image buffer to temporary hosting (placeholder implementation)
+   * In production, this should upload to cloud storage or a temporary hosting service
+   */
+  async uploadTemporaryImage(imageBuffer, filename) {
+    // For now, return a placeholder URL - this needs to be implemented
+    // In production, you would upload to:
+    // - AWS S3 with temporary public access
+    // - Google Cloud Storage
+    // - A dedicated temporary image hosting service
+    
+    logger.warn(`Temporary image upload not implemented - using placeholder for ${filename}`);
+    
+    // This is a temporary fallback - will cause face swap to fail
+    throw new Error('Temporary image upload not implemented. Please configure cloud storage for Piapi integration.');
   }
 
   /**

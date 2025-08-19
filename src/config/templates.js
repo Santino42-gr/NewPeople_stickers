@@ -5,74 +5,74 @@
 
 const MEME_TEMPLATES = [
   {
-    id: 'distracted_boyfriend',
-    name: 'Distracted Boyfriend',
-    emoji: '😍',
-    imageUrl: 'https://drive.google.com/uc?id=1ABC123DEF456GHI789JKL0MN',
-    description: 'Классический мем с парнем, который отвлекся на другую девушку'
+    id: '1',
+    name: 'Meme Template 1',
+    emoji: '😄',
+    imageUrl: 'https://drive.google.com/uc?export=download&id=1M7z1maLqUIssTU0FuxVQuAbcRy45iFMg',
+    description: 'Meme template for stickers'
   },
   {
-    id: 'drake_pointing',
-    name: 'Drake Pointing',
-    emoji: '👍',
-    imageUrl: 'https://drive.google.com/uc?id=2DEF456GHI789JKL0MN1ABC23',
-    description: 'Дрейк показывает на что-то пальцем'
+    id: '2',
+    name: 'Meme Template 2',
+    emoji: '😎',
+    imageUrl: 'https://drive.google.com/uc?export=download&id=1Eh0nMYxI_cFymSiJ-KywkH-l9cFliL5o',
+    description: 'Meme template for stickers'
   },
   {
-    id: 'woman_yelling_cat',
-    name: 'Woman Yelling at Cat',
-    emoji: '😾',
-    imageUrl: 'https://drive.google.com/uc?id=3GHI789JKL0MN1ABC234DEF56',
-    description: 'Женщина кричит на кота за столом'
+    id: '3',
+    name: 'Meme Template 3',
+    emoji: '🤪',
+    imageUrl: 'https://drive.google.com/uc?export=download&id=1mFOnGcyv8aM-Ku6y9YQT83J-V32_xdkv',
+    description: 'Meme template for stickers'
   },
   {
-    id: 'expanding_brain',
-    name: 'Expanding Brain',
-    emoji: '🧠',
-    imageUrl: 'https://drive.google.com/uc?id=4JKL0MN1ABC234DEF567GHI89',
-    description: 'Расширяющийся мозг - эволюция мышления'
+    id: '4',
+    name: 'Meme Template 4',
+    emoji: '😏',
+    imageUrl: 'https://drive.google.com/uc?export=download&id=1yuQH7L8G5L6lGiiFPqMqGy7wQxH1m0EI',
+    description: 'Meme template for stickers'
   },
   {
-    id: 'this_is_fine',
-    name: 'This Is Fine',
+    id: '5',
+    name: 'Meme Template 5',
+    emoji: '🥳',
+    imageUrl: 'https://drive.google.com/uc?export=download&id=1c84RrrMYqVnPaRS20OSWtdQ_L_R93aOk',
+    description: 'Meme template for stickers'
+  },
+  {
+    id: '6',
+    name: 'Meme Template 6',
+    emoji: '🤯',
+    imageUrl: 'https://drive.google.com/uc?export=download&id=1BdqSYtH95IJ_5e8dIy2jM6QYLsZpWQsE',
+    description: 'Meme template for stickers'
+  },
+  {
+    id: '7',
+    name: 'Meme Template 7',
+    emoji: '😂',
+    imageUrl: 'https://drive.google.com/uc?export=download&id=17usAMNogXrIo_TqkkKuX4J58ktvjBHcA',
+    description: 'Meme template for stickers'
+  },
+  {
+    id: '8',
+    name: 'Meme Template 8',
     emoji: '🔥',
-    imageUrl: 'https://drive.google.com/uc?id=5MN1ABC234DEF567GHI890JKL',
-    description: 'Собака в горящей комнате говорит "This is fine"'
+    imageUrl: 'https://drive.google.com/uc?export=download&id=11gRb8BEEOansTYWKP4VdqCkCC1HrRSWR',
+    description: 'Meme template for stickers'
   },
   {
-    id: 'surprised_pikachu',
-    name: 'Surprised Pikachu',
-    emoji: '😲',
-    imageUrl: 'https://drive.google.com/uc?id=6ABC234DEF567GHI890JKL1MN',
-    description: 'Удивленный Пикачу'
+    id: '9',
+    name: 'Meme Template 9',
+    emoji: '💪',
+    imageUrl: 'https://drive.google.com/uc?export=download&id=172rLv9lG8GUB56UVtHHNn3FA3MZZRt3Y',
+    description: 'Meme template for stickers'
   },
   {
-    id: 'change_my_mind',
-    name: 'Change My Mind',
-    emoji: '🤔',
-    imageUrl: 'https://drive.google.com/uc?id=7DEF567GHI890JKL1MN2ABC3',
-    description: 'Стивен Кроудер с табличкой "Change my mind"'
-  },
-  {
-    id: 'two_buttons',
-    name: 'Two Buttons',
-    emoji: '😰',
-    imageUrl: 'https://drive.google.com/uc?id=8GHI890JKL1MN2ABC345DEF6',
-    description: 'Сложный выбор между двумя кнопками'
-  },
-  {
-    id: 'galaxy_brain',
-    name: 'Galaxy Brain',
-    emoji: '🌌',
-    imageUrl: 'https://drive.google.com/uc?id=9JKL1MN2ABC345DEF678GHI9',
-    description: 'Галактический мозг - высший уровень мышления'
-  },
-  {
-    id: 'stonks',
-    name: 'Stonks',
-    emoji: '📈',
-    imageUrl: 'https://drive.google.com/uc?id=0MN2ABC345DEF678GHI901JKL',
-    description: 'Мем "Stonks" - рост и успех'
+    id: '10',
+    name: 'Meme Template 10',
+    emoji: '🚀',
+    imageUrl: 'https://drive.google.com/uc?export=download&id=1krXoNBuoxe7HHzmMODw04xk7ScokjFm3',
+    description: 'Meme template for stickers'
   }
 ];
 

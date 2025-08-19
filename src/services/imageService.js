@@ -435,6 +435,124 @@ class ImageService {
   }
 
   /**
+   * Download image from URL (e.g., Google Drive)
+   * @param {string} imageUrl - Image URL to download
+   * @returns {Promise<Buffer>} - Image buffer
+   */
+  async downloadImageFromUrl(imageUrl) {
+    const startTime = Date.now();
+    
+    try {
+      logger.info(`Downloading image from URL: ${imageUrl}`);
+
+      // Download the image with retry logic
+      const response = await errorHandler.safeExecuteWithRetries(
+        async () => await axios.get(imageUrl, {
+          responseType: 'arraybuffer',
+          timeout: CONFIG.API_TIMEOUT,
+          maxContentLength: CONFIG.MAX_IMAGE_SIZE,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; TelegramBot/1.0)'
+          }
+        }),
+        null,
+        3
+      );
+
+      const imageBuffer = Buffer.from(response.data);
+      const duration = Date.now() - startTime;
+
+      logger.info(`Image downloaded successfully from URL:`, {
+        url: imageUrl,
+        size: imageBuffer.length,
+        duration
+      });
+
+      return imageBuffer;
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error(`Failed to download image from URL ${imageUrl}:`, error);
+      
+      throw errorHandler.handleImageProcessingError(error, {
+        imageUrl,
+        method: 'downloadImageFromUrl',
+        duration
+      });
+    }
+  }
+
+  /**
+   * Prepare image for face swap processing
+   * @param {Buffer} imageBuffer - Input image buffer
+   * @returns {Promise<Buffer>} - Processed image buffer
+   */
+  async prepareImageForFaceSwap(imageBuffer) {
+    const startTime = Date.now();
+    
+    try {
+      logger.info(`Preparing image for face swap processing:`, {
+        inputSize: imageBuffer.length
+      });
+
+      const metadata = await sharp(imageBuffer).metadata();
+      
+      // Prepare image for optimal face detection and processing
+      // Standard size for face swap APIs (usually 512x512 or 1024x1024)
+      const targetSize = 1024;
+      
+      let sharpInstance = sharp(imageBuffer);
+      
+      // Calculate optimal dimensions while preserving aspect ratio
+      let outputWidth = metadata.width;
+      let outputHeight = metadata.height;
+      
+      if (outputWidth > targetSize || outputHeight > targetSize) {
+        if (outputWidth > outputHeight) {
+          outputHeight = Math.round((outputHeight * targetSize) / outputWidth);
+          outputWidth = targetSize;
+        } else {
+          outputWidth = Math.round((outputWidth * targetSize) / outputHeight);
+          outputHeight = targetSize;
+        }
+      }
+
+      // Process image for face swap
+      const processedBuffer = await sharpInstance
+        .resize(outputWidth, outputHeight, {
+          kernel: sharp.kernel.lanczos3,
+          withoutEnlargement: true
+        })
+        .jpeg({ 
+          quality: 90,
+          progressive: true
+        })
+        .toBuffer();
+
+      const duration = Date.now() - startTime;
+
+      logger.info(`Image prepared for face swap:`, {
+        inputSize: imageBuffer.length,
+        outputSize: processedBuffer.length,
+        dimensions: `${outputWidth}x${outputHeight}`,
+        duration
+      });
+
+      return processedBuffer;
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error('Failed to prepare image for face swap:', error);
+      
+      throw errorHandler.createError(
+        `Face swap preparation failed: ${error.message}`,
+        'PreparationError',
+        500
+      );
+    }
+  }
+
+  /**
    * Check if Sharp library is available
    * @returns {boolean} - Availability status
    */
