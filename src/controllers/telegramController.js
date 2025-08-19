@@ -347,20 +347,27 @@ class TelegramController {
       
       packName = stickerResult.packName;
       const packUrl = stickerResult.packUrl;
+      const finalStickerCount = stickerResult.stickerCount;
+      const uploadedStickers = stickerResult.uploadedStickers;
       
       // Step 6: Send success message
       const processingTime = Date.now() - startTime;
       
-      await telegramService.sendMessage(
-        chatId, 
-        MESSAGES.STICKERS_READY(packUrl, packName)
-      );
+      let successMessage = MESSAGES.STICKERS_READY(packUrl, packName);
+      
+      // Add info about partial success if some stickers failed
+      if (finalStickerCount < uploadedStickers) {
+        successMessage += `\n\n⚠️ Внимание: добавлено ${finalStickerCount} из ${uploadedStickers} стикеров. Некоторые стикеры могли быть дубликатами.`;
+      }
+      
+      await telegramService.sendMessage(chatId, successMessage);
       
       // Log generation completion
       await userLimitsService.logGeneration(userId, 'completed', {
         packName,
         packUrl,
-        stickerCount: stickerBuffers.length,
+        finalStickerCount,
+        uploadedStickers,
         processedTemplates: processedStickers,
         failedTemplates: failedStickers,
         processingTime,
@@ -377,7 +384,9 @@ class TelegramController {
         success: true,
         packName,
         packUrl,
-        stickerCount: stickerBuffers.length,
+        finalStickerCount,
+        uploadedStickers,
+        totalProcessed: stickerBuffers.length,
         processingTime
       };
       

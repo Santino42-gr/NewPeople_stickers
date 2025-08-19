@@ -260,6 +260,27 @@ class StickerService {
       const duration = Date.now() - startTime;
       logger.logApiCall('Telegram', 'addStickerToSet', duration, false);
 
+      // Log detailed error information for debugging
+      logger.error(`Failed to add sticker to set: ${packName}`, {
+        userId,
+        packName,
+        stickerFileId,
+        emoji,
+        errorMessage: error.message,
+        errorResponse: error.response?.data,
+        statusCode: error.response?.status,
+        telegramDescription: error.response?.data?.description,
+        requestData: {
+          user_id: userId,
+          name: packName,
+          sticker: JSON.stringify({
+            sticker: stickerFileId,
+            emoji_list: [emoji],
+            format: 'static'
+          })
+        }
+      });
+
       const telegramError = errorHandler.handleTelegramError(error, {
         userId,
         packName,
@@ -386,30 +407,70 @@ class StickerService {
       // Create new sticker set with first sticker
       await this.createNewStickerSet(userId, packName, fileIds[0], emojis[0], title);
 
-      // Add remaining stickers to the set
+      // Add remaining stickers to the set sequentially to avoid race conditions
       if (fileIds.length > 1) {
-        const addPromises = fileIds.slice(1).map((fileId, index) => 
-          this.addStickerToSet(userId, packName, fileId, emojis[index + 1])
-        );
-
-        await Promise.all(addPromises);
+        logger.info(`Adding ${fileIds.length - 1} additional stickers to set sequentially`, { packName });
+        
+        for (let i = 1; i < fileIds.length; i++) {
+          const fileId = fileIds[i];
+          const emoji = emojis[i];
+          
+          try {
+            logger.info(`Adding sticker ${i + 1}/${fileIds.length} to set: ${packName}`, {
+              fileId,
+              emoji,
+              stickerIndex: i + 1
+            });
+            
+            await this.addStickerToSet(userId, packName, fileId, emoji);
+            
+            // Add delay between requests to avoid rate limiting
+            if (i < fileIds.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay
+            }
+            
+          } catch (stickerError) {
+            logger.error(`Failed to add sticker ${i + 1}/${fileIds.length} to set ${packName}:`, {
+              fileId,
+              emoji,
+              error: stickerError.message,
+              stickerIndex: i + 1
+            });
+            
+            // Continue with other stickers instead of failing completely
+            // This allows partial pack creation if only one sticker fails
+            continue;
+          }
+        }
       }
 
       const packUrl = this.generateStickerPackUrl(packName);
       const duration = Date.now() - startTime;
 
-      logger.info(`Complete sticker pack created successfully: ${packName}`, {
+      // Check final sticker count in the pack
+      let finalStickerCount = fileIds.length;
+      try {
+        const stickerSet = await this.getStickerSet(packName);
+        finalStickerCount = stickerSet.stickers ? stickerSet.stickers.length : fileIds.length;
+      } catch (checkError) {
+        logger.warn(`Could not verify final sticker count for pack ${packName}:`, checkError.message);
+      }
+
+      logger.info(`Complete sticker pack created: ${packName}`, {
         userId,
         packName,
         packUrl,
-        stickerCount: fileIds.length,
+        uploadedStickers: fileIds.length,
+        finalStickerCount,
+        successRate: `${finalStickerCount}/${fileIds.length}`,
         duration
       });
 
       return {
         packName,
         packUrl,
-        stickerCount: fileIds.length,
+        stickerCount: finalStickerCount,
+        uploadedStickers: fileIds.length,
         fileIds,
         title
       };
