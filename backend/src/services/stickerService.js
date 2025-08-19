@@ -144,22 +144,48 @@ class StickerService {
         title
       });
 
-      const requestData = {
-        user_id: userId,
-        name: packName,
-        title: title,
-        stickers: JSON.stringify([{
-          sticker: firstStickerFileId,
-          emoji_list: [emoji],
-          format: 'static'
-        }])
-      };
+      const requestData = new URLSearchParams();
+      requestData.append('user_id', userId.toString());
+      requestData.append('name', packName);
+      requestData.append('title', title);
+      requestData.append('sticker_type', 'regular');
+      
+      // Correct format for stickers array
+      const stickersArray = [{
+        sticker: firstStickerFileId,
+        emoji_list: [emoji],
+        format: 'static'
+      }];
+      requestData.append('stickers', JSON.stringify(stickersArray));
+
+      logger.info(`Creating sticker set with data:`, {
+        userId,
+        packName,
+        title,
+        firstStickerFileId,
+        emoji,
+        stickerFormat: 'static',
+        stickerType: 'regular'
+      });
 
       const response = await axios.post(`${this.apiUrl}/createNewStickerSet`, requestData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         timeout: 30000
+      }).catch(error => {
+        logger.error(`Telegram API createNewStickerSet Error Details:`, {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          telegramErrorDescription: error.response?.data?.description,
+          telegramErrorCode: error.response?.data?.error_code,
+          userId,
+          packName,
+          firstStickerFileId,
+          emoji
+        });
+        throw error;
       });
 
       const duration = Date.now() - startTime;
@@ -352,22 +378,34 @@ class StickerService {
         
         // Check for specific Telegram errors and adjust strategy
         const errorMessage = error.message || '';
+        const responseData = error.response?.data;
+        const telegramError = responseData?.description || '';
+        
         const isEmojiError = errorMessage.includes('emoji') || errorMessage.includes('STICKER_EMOJI_INVALID');
         const isFileError = errorMessage.includes('file') || errorMessage.includes('STICKER_INVALID');
         const isDuplicateError = errorMessage.includes('duplicate') || errorMessage.includes('already exists');
+        const isStickerSetInvalid = telegramError.includes('STICKERSET_INVALID');
         
         logger.error(`Failed to add sticker to set: ${packName} (attempt ${attempt}/${maxRetries})`, {
           userId,
           packName,
           stickerFileId,
           error: error.message,
+          telegramError,
           attempt,
           duration,
           isEmojiError,
           isFileError,
           isDuplicateError,
-          errorType: isEmojiError ? 'EMOJI' : isFileError ? 'FILE' : isDuplicateError ? 'DUPLICATE' : 'UNKNOWN'
+          isStickerSetInvalid,
+          errorType: isStickerSetInvalid ? 'STICKERSET_INVALID' : isEmojiError ? 'EMOJI' : isFileError ? 'FILE' : isDuplicateError ? 'DUPLICATE' : 'UNKNOWN'
         });
+        
+        // If sticker set is invalid, no point in retrying
+        if (isStickerSetInvalid) {
+          logger.error(`STICKERSET_INVALID error detected - stopping all retries for pack: ${packName}`);
+          throw new Error(`Sticker set is invalid and cannot be modified: ${packName}`);
+        }
         
         // For emoji errors, try with a different emoji in next attempt
         if (isEmojiError && attempt < maxRetries) {
@@ -518,6 +556,22 @@ class StickerService {
 
       // Create new sticker set with first sticker
       await this.createNewStickerSet(userId, packName, fileIds[0], emojis[0], title);
+
+      // Wait for Telegram to process the sticker set creation
+      logger.info(`Waiting for Telegram to process sticker set creation: ${packName}`);
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+
+      // Verify sticker set was created successfully before adding more stickers
+      try {
+        const verificationResult = await this.getStickerSet(packName);
+        logger.info(`Sticker set verification successful: ${packName}`, {
+          initialStickerCount: verificationResult.stickers?.length || 0,
+          setTitle: verificationResult.title
+        });
+      } catch (verifyError) {
+        logger.error(`Failed to verify sticker set creation: ${packName}`, verifyError);
+        throw new Error(`Sticker set verification failed: ${verifyError.message}`);
+      }
 
       // Add remaining stickers to the set with improved error handling
       const failedStickers = [];
