@@ -129,6 +129,32 @@ app.get('/admin/stats',
   }
 );
 
+// Configuration check endpoint
+app.get('/admin/config', 
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  (req, res) => {
+    const piapiService = require('./src/services/piapiService');
+    const telegramService = require('./src/services/telegramService');
+    
+    res.json({
+      services: {
+        telegram: {
+          configured: telegramService.isConfigured(),
+          botToken: process.env.TELEGRAM_BOT_TOKEN ? 'SET' : 'NOT SET',
+          webhookUrl: process.env.TELEGRAM_WEBHOOK_URL || 'NOT SET'
+        },
+        piapi: {
+          configured: piapiService.isServiceConfigured(),
+          apiKey: process.env.PIAPI_API_KEY ? 'SET' : 'NOT SET',
+          baseUrl: process.env.PIAPI_BASE_URL || 'https://api.piapi.ai/api/v1'
+        },
+        environment: process.env.NODE_ENV || 'development'
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+);
+
 // Reset rate limits endpoint (development only)
 if (process.env.NODE_ENV === 'development') {
   app.post('/dev/reset-rate-limits',
