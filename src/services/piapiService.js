@@ -75,9 +75,12 @@ class PiapiService {
         }
 
         const taskData = {
-          task_type: 'face_swap',
-          target_image: targetImageUrl,
-          source_image: sourceImageUrl,
+          model: 'Qubico/image-toolkit',
+          task_type: 'face-swap',
+          input: {
+            target_image: targetImageUrl,
+            swap_image: sourceImageUrl
+          },
           ...taskOptions
         };
 
