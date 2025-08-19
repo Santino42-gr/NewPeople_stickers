@@ -197,80 +197,38 @@ class StickerService {
   }
 
   /**
-   * Add sticker to existing sticker set
+   * Add sticker to existing sticker set with retry logic
    * @param {number} userId - User ID
    * @param {string} packName - Pack name to add sticker to
    * @param {string} stickerFileId - File ID of the sticker
    * @param {string} emoji - Emoji for the sticker
+   * @param {number} maxRetries - Maximum number of retry attempts
    * @returns {Promise<boolean>} - Success status
    */
-  async addStickerToSet(userId, packName, stickerFileId, emoji = '😄') {
+  async addStickerToSet(userId, packName, stickerFileId, emoji = '😄', maxRetries = 3) {
     if (!this.isServiceConfigured()) {
       throw errorHandler.createError('Sticker service not configured', 'ConfigurationError', 500);
     }
 
-    const startTime = Date.now();
+    if (!userId || !packName || !stickerFileId) {
+      throw errorHandler.createError('User ID, pack name, and sticker file ID are required', 'ValidationError', 400);
+    }
 
-    try {
-      if (!userId || !packName || !stickerFileId) {
-        throw errorHandler.createError('User ID, pack name, and sticker file ID are required', 'ValidationError', 400);
-      }
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const startTime = Date.now();
+      
+      try {
+        logger.info(`Adding sticker to set: ${packName} (attempt ${attempt}/${maxRetries})`, {
+          userId,
+          packName,
+          stickerFileId,
+          emoji,
+          attempt
+        });
 
-      logger.info(`Adding sticker to set: ${packName}`, {
-        userId,
-        packName,
-        stickerFileId,
-        emoji
-      });
-
-      const requestData = {
-        user_id: userId,
-        name: packName,
-        sticker: JSON.stringify({
-          sticker: stickerFileId,
-          emoji_list: [emoji],
-          format: 'static'
-        })
-      };
-
-      const response = await axios.post(`${this.apiUrl}/addStickerToSet`, requestData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        timeout: 30000
-      });
-
-      const duration = Date.now() - startTime;
-      logger.logApiCall('Telegram', 'addStickerToSet', duration, true);
-
-      if (!response.data.ok) {
-        throw new Error(`Telegram API error: ${response.data.description}`);
-      }
-
-      logger.info(`Sticker added to set successfully: ${packName}`, {
-        userId,
-        packName,
-        stickerFileId,
-        duration
-      });
-
-      return true;
-
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      logger.logApiCall('Telegram', 'addStickerToSet', duration, false);
-
-      // Log detailed error information for debugging
-      logger.error(`Failed to add sticker to set: ${packName}`, {
-        userId,
-        packName,
-        stickerFileId,
-        emoji,
-        errorMessage: error.message,
-        errorResponse: error.response?.data,
-        statusCode: error.response?.status,
-        telegramDescription: error.response?.data?.description,
-        requestData: {
+        const requestData = {
           user_id: userId,
           name: packName,
           sticker: JSON.stringify({
@@ -278,18 +236,126 @@ class StickerService {
             emoji_list: [emoji],
             format: 'static'
           })
+        };
+
+        const response = await axios.post(`${this.apiUrl}/addStickerToSet`, requestData, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 30000
+        });
+
+        const duration = Date.now() - startTime;
+
+        if (!response.data.ok) {
+          throw new Error(`Telegram API error: ${response.data.description}`);
         }
-      });
 
-      const telegramError = errorHandler.handleTelegramError(error, {
-        userId,
-        packName,
-        stickerFileId,
-        method: 'addStickerToSet'
-      });
+        // Success!
+        logger.logApiCall('Telegram', 'addStickerToSet', duration, true);
+        logger.info(`Sticker added to set successfully: ${packName}`, {
+          userId,
+          packName,
+          stickerFileId,
+          duration,
+          attempt
+        });
 
-      throw telegramError;
+        return true;
+
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        logger.logApiCall('Telegram', 'addStickerToSet', duration, false);
+        
+        lastError = error;
+        
+        // Check if this is a retryable error
+        const isRetryable = this.isRetryableError(error);
+        
+        logger.warn(`Failed to add sticker to set: ${packName} (attempt ${attempt}/${maxRetries})`, {
+          userId,
+          packName,
+          stickerFileId,
+          emoji,
+          attempt,
+          errorMessage: error.message,
+          statusCode: error.response?.status,
+          telegramDescription: error.response?.data?.description,
+          isRetryable,
+          willRetry: attempt < maxRetries && isRetryable
+        });
+
+        // If this is the last attempt or error is not retryable, throw
+        if (attempt === maxRetries || !isRetryable) {
+          break;
+        }
+
+        // Wait before retry with exponential backoff
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Max 5 seconds
+        logger.info(`Waiting ${delay}ms before retry ${attempt + 1}`, {
+          packName,
+          attempt: attempt + 1,
+          delay
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
+
+    // Log final failure
+    logger.error(`Failed to add sticker to set after ${maxRetries} attempts: ${packName}`, {
+      userId,
+      packName,
+      stickerFileId,
+      emoji,
+      attempts: maxRetries,
+      errorMessage: lastError?.message,
+      errorResponse: lastError?.response?.data,
+      statusCode: lastError?.response?.status,
+      telegramDescription: lastError?.response?.data?.description
+    });
+
+    const telegramError = errorHandler.handleTelegramError(lastError, {
+      userId,
+      packName,
+      stickerFileId,
+      method: 'addStickerToSet',
+      attempts: maxRetries
+    });
+
+    throw telegramError;
+  }
+
+  /**
+   * Check if an error is retryable
+   * @param {Error} error - The error to check
+   * @returns {boolean} - Whether the error is retryable
+   */
+  isRetryableError(error) {
+    const statusCode = error.response?.status;
+    const errorDescription = error.response?.data?.description?.toLowerCase() || '';
+    
+    // Don't retry client errors (4xx) except for rate limiting and temporary issues
+    if (statusCode >= 400 && statusCode < 500) {
+      // Retry these specific 4xx errors
+      return statusCode === 429 || // Too Many Requests
+             errorDescription.includes('retry') ||
+             errorDescription.includes('temporarily') ||
+             errorDescription.includes('busy') ||
+             errorDescription.includes('timeout');
+    }
+    
+    // Retry server errors (5xx) and network errors
+    if (statusCode >= 500 || !statusCode) {
+      return true;
+    }
+    
+    // Retry timeout errors
+    if (error.code === 'ECONNABORTED' || error.code === 'TIMEOUT') {
+      return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -426,7 +492,7 @@ class StickerService {
             
             // Add delay between requests to avoid rate limiting
             if (i < fileIds.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay
+              await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
             }
             
           } catch (stickerError) {
