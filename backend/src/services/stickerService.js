@@ -223,34 +223,42 @@ class StickerService {
           attempt
         });
 
-        // Try alternative approach - some APIs prefer non-stringified objects
+        // Validate inputs according to Telegram Bot API requirements
+        if (!stickerFileId || typeof stickerFileId !== 'string' || stickerFileId.length < 10) {
+          throw new Error(`Invalid sticker file ID: ${stickerFileId}`);
+        }
+        
+        if (!emoji || typeof emoji !== 'string' || emoji.length === 0) {
+          throw new Error(`Invalid emoji: ${emoji}`);
+        }
+        
         const requestData = new URLSearchParams();
         requestData.append('user_id', userId.toString());
         requestData.append('name', packName);
         
-        // Try direct object format first
-        const stickerObject = {
+        // InputSticker object according to Telegram Bot API docs
+        const inputSticker = {
           sticker: stickerFileId,
           emoji_list: [emoji],
           format: 'static'
         };
         
-        // For attempt 1, try URLSearchParams with JSON string
-        // For attempt 2+, try different approaches
+        // Try different approaches based on attempt number
         if (attempt === 1) {
-          requestData.append('sticker', JSON.stringify(stickerObject));
+          // Official approach: InputSticker as JSON string
+          requestData.append('sticker', JSON.stringify(inputSticker));
         } else if (attempt === 2) {
-          // Try with individual fields (alternative approach)
-          requestData.delete('sticker');
+          // Alternative: try multipart/form-data structure
           requestData.append('sticker', stickerFileId);
           requestData.append('emoji_list', JSON.stringify([emoji]));
           requestData.append('format', 'static');
         } else {
-          // Attempt 3: back to original format but with validation
-          requestData.delete('sticker');
-          requestData.delete('emoji_list');
-          requestData.delete('format');
-          requestData.append('sticker', JSON.stringify(stickerObject));
+          // Last attempt: simplified InputSticker without format
+          const simplifiedSticker = {
+            sticker: stickerFileId,
+            emoji_list: [emoji]
+          };
+          requestData.append('sticker', JSON.stringify(simplifiedSticker));
         }
 
         // Detailed logging for debugging HTTP 400 errors
@@ -260,9 +268,9 @@ class StickerService {
           packName,
           stickerFileId,
           emoji,
-          stickerObject,
+          inputSticker,
           requestDataEntries,
-          requestFormat: attempt === 1 ? 'JSON_STRING' : attempt === 2 ? 'INDIVIDUAL_FIELDS' : 'VALIDATED_JSON',
+          requestFormat: attempt === 1 ? 'INPUTSTICKER_JSON' : attempt === 2 ? 'FORM_DATA_FIELDS' : 'SIMPLIFIED_JSON',
           attempt
         });
 
