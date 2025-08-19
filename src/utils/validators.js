@@ -73,11 +73,28 @@ class Validators {
   }
 
   /**
-   * Validate URL format
+   * Validate URL format (including data URLs for Piapi)
    */
   isValidUrl(url) {
     if (!url || typeof url !== 'string') {
       return { valid: false, error: 'URL is required and must be a string' };
+    }
+
+    // Check for data URLs (base64 encoded images for Piapi)
+    if (url.startsWith('data:')) {
+      // Validate data URL format: data:[mediatype][;base64],data
+      const dataUrlPattern = /^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+)(;base64)?,(.+)$/;
+      if (!dataUrlPattern.test(url)) {
+        return { valid: false, error: 'Invalid data URL format' };
+      }
+      
+      // Check if it's an image data URL
+      const [, mediaType] = url.match(dataUrlPattern);
+      if (!mediaType.startsWith('image/')) {
+        return { valid: false, error: 'Data URL must be an image type' };
+      }
+      
+      return { valid: true };
     }
 
     try {

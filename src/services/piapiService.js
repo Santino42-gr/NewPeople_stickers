@@ -356,7 +356,7 @@ class PiapiService {
       return {
         taskId: createResponse.taskId,
         status: 'completed',
-        resultUrl: completionResponse.result?.url || completionResponse.result?.output_url,
+        resultUrl: completionResponse.result?.image_url || completionResponse.result?.url || completionResponse.result?.output_url,
         result: completionResponse.result
       };
       

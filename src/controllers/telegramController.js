@@ -506,34 +506,39 @@ class TelegramController {
   }
 
   /**
-   * Upload image buffer to Telegram as temporary hosting
-   * Uses Telegram's file hosting as a temporary solution for Piapi integration
+   * Convert image buffer to base64 data URL for Piapi API
+   * Piapi supports base64 data URLs which eliminates need for temporary hosting
    */
   async uploadTemporaryImage(imageBuffer, filename) {
     try {
-      logger.info(`Uploading temporary image via Telegram: ${filename}`);
+      logger.info(`Converting image to base64 data URL: ${filename}`);
       
-      // For temporary upload, we'll use a dedicated channel or the current user's chat
-      // As a fallback, we'll create a temporary URL using a simple approach
+      // Convert to base64 data URL - Piapi supports this format
+      let contentType = 'image/jpeg'; // default
       
-      // Try to get bot info to use as temporary storage
-      const botInfo = await telegramService.getMe();
-      const botId = botInfo.id;
+      // Detect content type from buffer or filename
+      if (filename.toLowerCase().includes('.png') || imageBuffer[0] === 0x89) {
+        contentType = 'image/png';
+      } else if (filename.toLowerCase().includes('.webp')) {
+        contentType = 'image/webp';  
+      } else if (filename.toLowerCase().includes('.jpg') || filename.toLowerCase().includes('.jpeg')) {
+        contentType = 'image/jpeg';
+      }
       
-      logger.info(`Using bot ID ${botId} for temporary image storage`);
+      const base64 = imageBuffer.toString('base64');
+      const dataUrl = `data:${contentType};base64,${base64}`;
       
-      // Upload image to the bot's own chat (this will fail, but that's expected)
-      // Instead, let's create a temporary file upload using a different approach
+      logger.info(`Created base64 data URL for image`, {
+        contentType,
+        originalSize: imageBuffer.length,
+        base64Size: base64.length
+      });
       
-      // For now, let's use a simpler fallback approach since Telegram doesn't allow
-      // bots to send messages to themselves
-      throw new Error('Telegram temporary upload not available - using fallback');
+      return dataUrl;
       
     } catch (error) {
-      logger.info(`Telegram upload failed, using fallback processing: ${error.message}`);
-      
-      // Fallback: throw error to trigger fallback processing
-      throw new Error(`Temporary image upload not available: ${error.message}`);
+      logger.error(`Failed to create base64 data URL: ${error.message}`);
+      throw new Error(`Base64 conversion failed: ${error.message}`);
     }
   }
 
