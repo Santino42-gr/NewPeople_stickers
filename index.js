@@ -140,18 +140,62 @@ app.get('/admin/config',
       services: {
         telegram: {
           configured: telegramService.isConfigured(),
-          botToken: process.env.TELEGRAM_BOT_TOKEN ? 'SET' : 'NOT SET',
+          botToken: process.env.TELEGRAM_BOT_TOKEN ? 'SET (' + process.env.TELEGRAM_BOT_TOKEN.substring(0, 10) + '...)' : 'NOT SET',
           webhookUrl: process.env.TELEGRAM_WEBHOOK_URL || 'NOT SET'
         },
         piapi: {
           configured: piapiService.isServiceConfigured(),
-          apiKey: process.env.PIAPI_API_KEY ? 'SET' : 'NOT SET',
+          apiKey: process.env.PIAPI_API_KEY ? 'SET (' + process.env.PIAPI_API_KEY.substring(0, 10) + '...)' : 'NOT SET',
           baseUrl: process.env.PIAPI_BASE_URL || 'https://api.piapi.ai/api/v1'
         },
         environment: process.env.NODE_ENV || 'development'
       },
       timestamp: new Date().toISOString()
     });
+  }
+);
+
+// Test Piapi connection endpoint
+app.get('/admin/test-piapi', 
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  async (req, res) => {
+    const piapiService = require('./src/services/piapiService');
+    
+    try {
+      if (!piapiService.isServiceConfigured()) {
+        return res.json({
+          success: false,
+          error: 'Piapi service not configured',
+          configured: false
+        });
+      }
+
+      // Test with dummy URLs to see if API responds
+      const testResult = await piapiService.createFaceSwapTask(
+        'https://picsum.photos/200/200', // dummy target
+        'https://picsum.photos/200/200', // dummy source
+        { maxRetries: 1 }
+      );
+
+      res.json({
+        success: true,
+        configured: true,
+        testResult: {
+          taskId: testResult.taskId,
+          status: testResult.status
+        },
+        message: 'Piapi API is working correctly'
+      });
+
+    } catch (error) {
+      res.json({
+        success: false,
+        configured: piapiService.isServiceConfigured(),
+        error: error.message,
+        errorType: error.name || 'Unknown',
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 );
 
