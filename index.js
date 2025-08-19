@@ -170,10 +170,10 @@ app.get('/admin/test-piapi',
         });
       }
 
-      // Test with dummy URLs to see if API responds
+      // Test with real image URLs instead of random generators
       const testResult = await piapiService.createFaceSwapTask(
-        'https://picsum.photos/200/200', // dummy target
-        'https://picsum.photos/200/200', // dummy source
+        'https://drive.google.com/uc?export=download&id=1M7z1maLqUIssTU0FuxVQuAbcRy45iFMg', // real meme template
+        'https://drive.google.com/uc?export=download&id=1Eh0nMYxI_cFymSiJ-KywkH-l9cFliL5o', // another template as source
         { maxRetries: 1 }
       );
 
@@ -188,14 +188,41 @@ app.get('/admin/test-piapi',
       });
 
     } catch (error) {
-      res.json({
+      // More detailed error logging
+      const errorDetails = {
         success: false,
         configured: piapiService.isServiceConfigured(),
         error: error.message,
         errorType: error.name || 'Unknown',
         timestamp: new Date().toISOString()
-      });
+      };
+
+      // Add more context if it's an HTTP error
+      if (error.response) {
+        errorDetails.httpStatus = error.response.status;
+        errorDetails.httpStatusText = error.response.statusText;
+        errorDetails.responseData = error.response.data;
+      }
+
+      res.json(errorDetails);
     }
+  }
+);
+
+// Simple Piapi API key test (without making actual requests)
+app.get('/admin/piapi-info', 
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  (req, res) => {
+    const apiKey = process.env.PIAPI_API_KEY;
+    const baseUrl = process.env.PIAPI_BASE_URL;
+    
+    res.json({
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey ? apiKey.length : 0,
+      apiKeyStart: apiKey ? apiKey.substring(0, 8) + '...' : 'NOT SET',
+      baseUrl: baseUrl || 'https://api.piapi.ai/api/v1',
+      timestamp: new Date().toISOString()
+    });
   }
 );
 
