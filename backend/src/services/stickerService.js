@@ -527,7 +527,34 @@ class StickerService {
     }
 
     const startTime = Date.now();
+    const maxStickerSetRetries = 2; // Maximum attempts to recreate sticker set
+    
+    for (let stickerSetAttempt = 1; stickerSetAttempt <= maxStickerSetRetries; stickerSetAttempt++) {
+      logger.info(`Creating sticker set attempt ${stickerSetAttempt}/${maxStickerSetRetries}`);
+      
+      try {
+        return await this._createStickerSetAttempt(userId, stickerBuffers, emojis, title, startTime, stickerSetAttempt);
+      } catch (error) {
+        const isStickerSetError = error.message.includes('STICKERSET_INVALID') || 
+                                error.message.includes('Multiple STICKERSET_INVALID errors');
+        
+        if (isStickerSetError && stickerSetAttempt < maxStickerSetRetries) {
+          logger.warn(`Sticker set creation failed (attempt ${stickerSetAttempt}), retrying with new pack name...`, {
+            error: error.message,
+            nextAttempt: stickerSetAttempt + 1
+          });
+          
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          continue;
+        }
+        
+        throw error;
+      }
+    }
+  }
 
+  async _createStickerSetAttempt(userId, stickerBuffers, emojis, title, startTime, attempt) {
     try {
       if (!userId || !Array.isArray(stickerBuffers) || stickerBuffers.length === 0) {
         throw errorHandler.createError('User ID and sticker buffers array are required', 'ValidationError', 400);
@@ -537,7 +564,8 @@ class StickerService {
         throw errorHandler.createError('Emojis array must match stickers count', 'ValidationError', 400);
       }
 
-      const packName = this.generatePackName(userId);
+      // Generate unique pack name for each attempt
+      const packName = this.generatePackName(userId) + (attempt > 1 ? `_retry${attempt}` : '');
       
       logger.info(`Creating complete sticker pack: ${packName}`, {
         userId,
@@ -559,7 +587,7 @@ class StickerService {
 
       // Wait for Telegram to process the sticker set creation
       logger.info(`Waiting for Telegram to process sticker set creation: ${packName}`);
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+      await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second delay
 
       // Verify sticker set was created successfully before adding more stickers
       try {
@@ -575,6 +603,7 @@ class StickerService {
 
       // Add remaining stickers to the set with improved error handling
       const failedStickers = [];
+      const stickerSetInvalidErrors = [];
       const fallbackEmojis = ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙'];
       
       if (fileIds.length > 1) {
@@ -586,11 +615,22 @@ class StickerService {
           try {
             await this.addStickerToSet(userId, packName, fileIds[i], emojis[i]);
           } catch (error) {
+            const isStickerSetInvalid = error.message.includes('STICKERSET_INVALID');
+            
+            if (isStickerSetInvalid) {
+              stickerSetInvalidErrors.push({
+                stickerIndex: i + 1,
+                fileId: fileIds[i],
+                error: error.message
+              });
+            }
+            
             logger.error(`Failed to add sticker ${i + 1}/${fileIds.length}, adding to retry list:`, {
               error: error.message,
               stickerIndex: i,
               fileId: fileIds[i],
-              originalEmoji: emojis[i]
+              originalEmoji: emojis[i],
+              isStickerSetInvalid
             });
             
             failedStickers.push({
@@ -601,10 +641,20 @@ class StickerService {
             });
           }
           
-          // Add small delay between sticker additions to avoid rate limiting
+          // Add delay between sticker additions to avoid race conditions
           if (i < fileIds.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
+            await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5 second delay
           }
+        }
+        
+        // Check for multiple STICKERSET_INVALID errors - indicates the set needs to be recreated
+        if (stickerSetInvalidErrors.length >= 2) {
+          logger.error(`Multiple STICKERSET_INVALID errors detected (${stickerSetInvalidErrors.length}), sticker set is fundamentally broken:`, {
+            packName,
+            stickerSetInvalidErrors,
+            attempt
+          });
+          throw new Error(`Multiple STICKERSET_INVALID errors detected: sticker set ${packName} is invalid and needs recreation`);
         }
         
         // Retry failed stickers with fallback emojis
