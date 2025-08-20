@@ -298,7 +298,7 @@ class TelegramController {
         logger.info(`Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} templates)`);
         
         const batchPromises = batch.map(async (template, templateIndex) => {
-          return this.processTemplate(template, userPhotoBuffer, batchIndex, templateIndex);
+          return this.processTemplate(template, userPhotoBuffer, batchIndex, templateIndex, userId);
         });
         
         const batchResults = await Promise.allSettled(batchPromises);
@@ -314,7 +314,22 @@ class TelegramController {
             logger.info(`Template ${template.id} processed successfully`);
           } else {
             failedStickers++;
-            logger.error(`Template ${template.id} failed:`, result.reason);
+            const error = result.reason;
+            
+            // Check if this is a face detection error
+            if (error.name === 'FaceDetectionError') {
+              logger.error(`Face detection failed on user photo for template ${template.id}`, {
+                userId,
+                templateId: template.id,
+                error: error.message,
+                originalError: error.originalError?.message
+              });
+              
+              // Throw face detection error to stop processing
+              throw error;
+            }
+            
+            logger.error(`Template ${template.id} failed:`, error);
             
             if (!TEMPLATE_CONFIG.CONTINUE_ON_TEMPLATE_ERROR) {
               throw new Error(`Template processing failed: ${template.id}`);
@@ -433,10 +448,40 @@ class TelegramController {
       return result;
       
     } catch (error) {
+      const processingTime = Date.now() - startTime;
+      
+      // Handle face detection errors differently
+      if (error.name === 'FaceDetectionError') {
+        // Reset user state to allow retry
+        this.userStates.set(chatId, BOT_STATES.IDLE);
+        
+        logger.warn(`Face detection failed for user ${userId} - requesting new photo`, {
+          error: error.message,
+          originalError: error.originalError?.message,
+          processingTime
+        });
+        
+        // Send face detection error message
+        await telegramService.sendMessage(chatId, MESSAGES.FACE_NOT_DETECTED);
+        
+        // Log face detection failure (but don't log as generation attempt)
+        await userLimitsService.logGeneration(userId, 'face_detection_failed', {
+          error: error.message,
+          processingTime,
+          firstName
+        });
+        
+        // Don't throw error - user can try again with new photo
+        return {
+          success: false,
+          reason: 'face_detection_failed',
+          message: 'Face not detected, user can retry'
+        };
+      }
+      
+      // Handle other errors
       // Reset user state on error
       this.userStates.set(chatId, BOT_STATES.ERROR);
-      
-      const processingTime = Date.now() - startTime;
       
       logger.error(`Sticker pack generation failed for user ${userId}:`, {
         error: error.message,
@@ -463,7 +508,7 @@ class TelegramController {
   /**
    * Process individual template with face swap
    */
-  async processTemplate(template, userPhotoBuffer, batchIndex, templateIndex) {
+  async processTemplate(template, userPhotoBuffer, batchIndex, templateIndex, userId) {
     const templateStartTime = Date.now();
     
     try {
@@ -528,21 +573,43 @@ class TelegramController {
           logger.info(`Template ${template.id} processed with Piapi successfully`);
           
         } catch (piapiError) {
-          logger.warn(`Piapi processing failed for template ${template.id}, using fallback:`, {
+          logger.warn(`Piapi processing failed for template ${template.id}:`, {
             error: piapiError.message,
             templateId: template.id,
             templateUrl: template.imageUrl,
-            errorDetails: piapiError.response?.data || piapiError.message
+            errorDetails: piapiError.response?.data || piapiError.message,
+            batchIndex,
+            templateIndex
           });
           
           // Check if it's a face detection issue
-          if (piapiError.message && (
-            piapiError.message.includes('face') || 
-            piapiError.message.includes('Face') ||
-            piapiError.message.includes('detection') ||
-            piapiError.response?.data?.error?.includes('face')
-          )) {
-            logger.warn(`Face detection failed for template ${template.id} - will use original meme`);
+          const isFaceDetectionError = piapiError.message && (
+            piapiError.message.toLowerCase().includes('face') || 
+            piapiError.message.toLowerCase().includes('detection') ||
+            piapiError.message.toLowerCase().includes('no face') ||
+            piapiError.response?.data?.error?.toLowerCase()?.includes('face') ||
+            piapiError.response?.status === 400
+          );
+          
+          if (isFaceDetectionError) {
+            logger.error(`Face detection failed for template ${template.id}`, {
+              userId,
+              templateId: template.id,
+              isFirstTemplate: batchIndex === 0 && templateIndex === 0,
+              error: piapiError.message
+            });
+            
+            // If this is the first template and face detection failed,
+            // it means the user's photo has issues and we should stop processing
+            if (batchIndex === 0 && templateIndex === 0) {
+              const faceDetectionError = new Error('Face detection failed on user photo');
+              faceDetectionError.name = 'FaceDetectionError';
+              faceDetectionError.originalError = piapiError;
+              throw faceDetectionError;
+            }
+            
+            // For other templates, continue with fallback but log the issue
+            logger.warn(`Face detection failed for template ${template.id}, using fallback`);
           }
           
           // Fallback processing - use original meme instead of user photo
