@@ -374,7 +374,7 @@ class TelegramController {
       const stickerResult = await stickerService.createCompleteStickerPack(
         userId,
         stickerBuffers,
-        emojis,
+        emojis, 
         `Мемстикеры ➡️ @NewPeopleStickers_bot`
       );
       
