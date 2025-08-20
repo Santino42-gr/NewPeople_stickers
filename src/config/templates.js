@@ -73,6 +73,20 @@ const MEME_TEMPLATES = [
     emoji: '🚀',
     imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/assets/memes/meme-10.png',
     description: 'Meme template for stickers'
+  },
+  {
+    id: '11',
+    name: 'Стикер 11',
+    emoji: '😁',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/assets/memes/стикер%2011%20(1).png',
+    description: 'Готовый стикер 11'
+  },
+  {
+    id: '12',
+    name: 'Стикер 12',
+    emoji: '🤩',
+    imageUrl: 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/assets/memes/стикер%2012%20(1).png',
+    description: 'Готовый стикер 12'
   }
 ];
 

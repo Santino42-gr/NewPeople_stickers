@@ -469,11 +469,27 @@ class TelegramController {
     try {
       logger.info(`Processing template ${template.id} (batch ${batchIndex}, index ${templateIndex})`);
       
-      // Step 1: Try Piapi face swap if configured, otherwise use fallback
+      // Check if this is a ready-made sticker (ID 11 or 12)
+      const isReadySticker = template.id === '11' || template.id === '12';
+      
       let optimizedSticker;
       let processingMethod = 'fallback';
       
-      if (piapiService.isServiceConfigured()) {
+      if (isReadySticker) {
+        // For ready stickers, just download and optimize without face swap
+        logger.info(`Processing ready-made sticker ${template.id} - no face swap needed`);
+        
+        const templateBuffer = await imageService.downloadImageFromUrl(template.imageUrl);
+        
+        optimizedSticker = await imageService.optimizeForStickers(templateBuffer, {
+          maxSize: TEMPLATE_CONFIG.OUTPUT_STICKER_SIZE,
+          quality: TEMPLATE_CONFIG.OUTPUT_QUALITY
+        });
+        
+        processingMethod = 'ready_sticker';
+        logger.info(`Ready sticker ${template.id} processed successfully`);
+        
+      } else if (piapiService.isServiceConfigured()) {
         try {
           // Step 2: Upload user photo to temporary hosting for Piapi API
           logger.info(`Attempting Piapi face swap for template ${template.id}`);

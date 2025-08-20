@@ -168,19 +168,27 @@ class StickerService {
       });
 
       const duration = Date.now() - startTime;
-      logger.logApiCall('Telegram', 'createNewStickerSet', duration, true);
 
       if (!response.data.ok) {
+        logger.logApiCall('Telegram', 'createNewStickerSet', duration, false);
         throw new Error(`Telegram API error: ${response.data.description}`);
       }
 
-      logger.info(`Sticker set created successfully: ${packName}`, {
-        userId,
-        packName,
-        duration
-      });
+      logger.logApiCall('Telegram', 'createNewStickerSet', duration, true);
 
-      return true;
+      // Verify the sticker set was created by trying to get it
+      try {
+        await this.getStickerSet(packName);
+        logger.info(`Sticker set created and verified successfully: ${packName}`, {
+          userId,
+          packName,
+          duration
+        });
+        return true;
+      } catch (verifyError) {
+        logger.error(`Sticker set created but verification failed: ${packName}`, verifyError.message);
+        throw new Error(`Sticker set creation verification failed: ${verifyError.message}`);
+      }
 
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -212,6 +220,19 @@ class StickerService {
 
     if (!userId || !packName || !stickerFileId) {
       throw errorHandler.createError('User ID, pack name, and sticker file ID are required', 'ValidationError', 400);
+    }
+
+    // First, verify that the sticker set exists
+    try {
+      await this.getStickerSet(packName);
+      logger.info(`Sticker set verified before adding sticker: ${packName}`);
+    } catch (verifyError) {
+      logger.error(`Sticker set does not exist or is invalid: ${packName}`, verifyError.message);
+      throw errorHandler.createError(
+        `Cannot add sticker to non-existent sticker set: ${packName}`,
+        'ValidationError',
+        400
+      );
     }
 
     let lastError = null;
@@ -472,6 +493,10 @@ class StickerService {
 
       // Create new sticker set with first sticker
       await this.createNewStickerSet(userId, packName, fileIds[0], emojis[0], title);
+
+      // Wait a bit for Telegram servers to sync the new sticker set
+      logger.info(`Waiting 3 seconds for Telegram servers to sync sticker set: ${packName}`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Add remaining stickers to the set sequentially to avoid race conditions
       if (fileIds.length > 1) {
