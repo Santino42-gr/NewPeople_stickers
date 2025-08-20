@@ -5,6 +5,8 @@
 
 const axios = require('axios');
 const sharp = require('sharp');
+const fs = require('fs').promises;
+const path = require('path');
 const logger = require('../utils/logger');
 const errorHandler = require('../utils/errorHandler');
 const validators = require('../utils/validators');
@@ -446,6 +448,60 @@ class ImageService {
     } catch (error) {
       logger.error('Sharp library not available:', error);
       return false;
+    }
+  }
+
+  /**
+   * Load static sticker from assets directory
+   * @param {string} fileName - Name of the static sticker file
+   * @returns {Promise<Buffer>} - Optimized static sticker buffer
+   */
+  async loadStaticStickerFromAssets(fileName) {
+    const startTime = Date.now();
+    
+    try {
+      logger.info(`Loading static sticker from assets: ${fileName}`);
+
+      // Construct path to assets directory (go up from backend to root, then to assets/memes)
+      const assetsPath = path.join(__dirname, '..', '..', 'assets', 'memes', fileName);
+      
+      logger.info(`Loading static sticker from path: ${assetsPath}`);
+      
+      // Check if file exists
+      try {
+        await fs.access(assetsPath);
+      } catch (error) {
+        throw errorHandler.createError(`Static sticker file not found: ${fileName}`, 'FileNotFoundError', 404);
+      }
+
+      // Read the file
+      const imageBuffer = await fs.readFile(assetsPath);
+      
+      // Optimize for stickers
+      const optimizedBuffer = await this.optimizeForStickers(imageBuffer, {
+        maxSize: CONFIG.STICKER_MAX_SIZE,
+        quality: 85,
+        targetFileSize: CONFIG.MAX_STICKER_FILE_SIZE
+      });
+
+      const duration = Date.now() - startTime;
+      
+      logger.info(`Static sticker loaded and optimized: ${fileName}`, {
+        fileName,
+        inputSize: imageBuffer.length,
+        outputSize: optimizedBuffer.length,
+        duration
+      });
+
+      return optimizedBuffer;
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error(`Failed to load static sticker: ${fileName}`, {
+        error: error.message,
+        duration
+      });
+      throw error;
     }
   }
 }

@@ -335,6 +335,36 @@ class TelegramController {
         );
       }
       
+      // Step 4.5: Add static stickers
+      logger.info('Adding static stickers to the pack');
+      
+      try {
+        // Load static sticker 11
+        const staticSticker11 = await imageService.loadStaticStickerFromAssets('стикер 11 (1).png');
+        stickerBuffers.push(staticSticker11);
+        emojis.push('😎');
+        logger.info('Static sticker 11 added successfully');
+        
+        // Load static sticker 12  
+        const staticSticker12 = await imageService.loadStaticStickerFromAssets('стикер 12 (1).png');
+        stickerBuffers.push(staticSticker12);
+        emojis.push('🔥');
+        logger.info('Static sticker 12 added successfully');
+        
+        logger.info(`Total stickers after adding static ones: ${stickerBuffers.length}`);
+        
+        // Send update about static stickers
+        await telegramService.sendMessage(
+          chatId, 
+          `🎨 Добавлены дополнительные стикеры! Всего готово: ${stickerBuffers.length} стикеров`
+        );
+        
+      } catch (error) {
+        logger.error('Failed to add static stickers:', error);
+        // Continue without static stickers if they fail to load
+        logger.info('Continuing without static stickers');
+      }
+      
       // Step 5: Create sticker pack
       logger.info(`Creating sticker pack with ${stickerBuffers.length} stickers`);
       
