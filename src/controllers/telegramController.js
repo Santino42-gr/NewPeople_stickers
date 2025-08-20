@@ -528,9 +528,24 @@ class TelegramController {
           logger.info(`Template ${template.id} processed with Piapi successfully`);
           
         } catch (piapiError) {
-          logger.warn(`Piapi processing failed for template ${template.id}, using fallback:`, piapiError.message);
+          logger.warn(`Piapi processing failed for template ${template.id}, using fallback:`, {
+            error: piapiError.message,
+            templateId: template.id,
+            templateUrl: template.imageUrl,
+            errorDetails: piapiError.response?.data || piapiError.message
+          });
           
-          // Fallback processing
+          // Check if it's a face detection issue
+          if (piapiError.message && (
+            piapiError.message.includes('face') || 
+            piapiError.message.includes('Face') ||
+            piapiError.message.includes('detection') ||
+            piapiError.response?.data?.error?.includes('face')
+          )) {
+            logger.warn(`Face detection failed for template ${template.id} - will use original meme`);
+          }
+          
+          // Fallback processing - use original meme instead of user photo
           optimizedSticker = await this.processFallbackTemplate(template, userPhotoBuffer);
           processingMethod = 'fallback_after_piapi_error';
         }
@@ -613,12 +628,12 @@ class TelegramController {
     try {
       logger.info(`Processing template ${template.id} using fallback method`);
       
-      // Download meme template from Google Drive
+      // Download meme template from GitHub
       const templateBuffer = await imageService.downloadImageFromUrl(template.imageUrl);
       
-      // For fallback, we'll use the user's photo optimized for stickers
-      // In a more advanced implementation, we could try to create a simple composite
-      const optimizedSticker = await imageService.optimizeForStickers(userPhotoBuffer, {
+      // For fallback, use the original meme template instead of user photo
+      // This ensures user gets the meme even if face swap fails
+      const optimizedSticker = await imageService.optimizeForStickers(templateBuffer, {
         maxSize: TEMPLATE_CONFIG.OUTPUT_STICKER_SIZE,
         quality: TEMPLATE_CONFIG.OUTPUT_QUALITY
       });
