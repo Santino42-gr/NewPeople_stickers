@@ -7,21 +7,35 @@ async function runAllTests() {
   console.log('📱 TELEGRAM BOT API');
   console.log('=' .repeat(50));
   
+  // Test Telegram API
   try {
-    require('./test-telegram-api.js');
+    const telegramService = require('./src/services/telegramService');
+    if (telegramService.isConfigured()) {
+      console.log('✅ Telegram service configured');
+      const botInfo = await telegramService.getMe();
+      console.log(`✅ Bot connected: @${botInfo.username}`);
+    } else {
+      console.log('❌ Telegram service not configured');
+    }
     await new Promise(resolve => setTimeout(resolve, 2000)); // Пауза между тестами
   } catch (error) {
-    console.error('Ошибка при тестировании Telegram API:', error.message);
+    console.error('❌ Ошибка при тестировании Telegram API:', error.message);
   }
   
   console.log('\n' + '=' .repeat(50));
   console.log('🤖 PIAPI AI API'); 
   console.log('=' .repeat(50));
   
+  // Test Piapi API
   try {
-    require('./test-piapi-api.js');
+    const piapiService = require('./src/services/piapiService');
+    if (piapiService.isServiceConfigured()) {
+      console.log('✅ Piapi service configured');
+    } else {
+      console.log('❌ Piapi service not configured');
+    }
   } catch (error) {
-    console.error('Ошибка при тестировании Piapi API:', error.message);
+    console.error('❌ Ошибка при тестировании Piapi API:', error.message);
   }
   
   console.log('\n' + '=' .repeat(50));

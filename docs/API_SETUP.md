@@ -41,7 +41,7 @@
 ### Шаг 4: Тестирование
 
 ```bash
-node test-telegram-api.js
+npm run test:apis
 ```
 
 ---
@@ -81,7 +81,7 @@ PIAPI_BASE_URL=https://api.piapi.ai/api/v1
 ### Шаг 5: Тестирование
 
 ```bash
-node test-piapi-api.js
+npm run test:apis
 ```
 
 ---
@@ -125,14 +125,16 @@ node test-apis.js
 ### Индивидуальные тесты:
 
 ```bash
-# Только Telegram API
-node test-telegram-api.js
+# Все API тесты
+npm run test:apis
 
-# Только Piapi AI
-node test-piapi-api.js
+# Конкретные тесты
+node test-error-handling.js
+node test-security.js
+node test-deployment.js
 
-# База данных
-node test-db.js
+# База данных (юнит-тесты)
+node tests/userLimits-test.js
 ```
 
 ---
