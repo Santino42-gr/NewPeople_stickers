@@ -375,7 +375,7 @@ class TelegramController {
         userId,
         stickerBuffers,
         emojis,
-        `New People Stickers - ${firstName}`
+        `Создать мемстикеры 🩵 @NewPeopleStickers_bot`
       );
       
       packName = stickerResult.packName;
