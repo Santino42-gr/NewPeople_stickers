@@ -339,14 +339,18 @@ class TelegramController {
       logger.info('Adding static stickers to the pack');
       
       try {
+        // Static sticker URLs (GitHub raw URLs)
+        const staticSticker11Url = 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/assets/memes/стикер%2011%20(1).png';
+        const staticSticker12Url = 'https://raw.githubusercontent.com/Santino42-gr/NewPeople_stickers/main/assets/memes/стикер%2012%20(1).png';
+        
         // Load static sticker 11
-        const staticSticker11 = await imageService.loadStaticStickerFromAssets('стикер 11 (1).png');
+        const staticSticker11 = await imageService.loadStaticStickerFromUrl(staticSticker11Url, 'static sticker 11');
         stickerBuffers.push(staticSticker11);
         emojis.push('😎');
         logger.info('Static sticker 11 added successfully');
         
         // Load static sticker 12  
-        const staticSticker12 = await imageService.loadStaticStickerFromAssets('стикер 12 (1).png');
+        const staticSticker12 = await imageService.loadStaticStickerFromUrl(staticSticker12Url, 'static sticker 12');
         stickerBuffers.push(staticSticker12);
         emojis.push('🔥');
         logger.info('Static sticker 12 added successfully');
