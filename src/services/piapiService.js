@@ -269,14 +269,44 @@ class PiapiService {
           
           // Check if task failed
           if (statusResponse.status === 'failed' || statusResponse.status === 'error') {
-            const errorMessage = statusResponse.error || 'Task failed without specific error message';
-            logger.error(`Task ${taskId} failed: ${errorMessage}`);
+            // Extract error message properly from object or string
+            let errorMessage = 'Task failed without specific error message';
+            let errorDetails = null;
             
-            throw errorHandler.createError(
+            if (statusResponse.error) {
+              if (typeof statusResponse.error === 'string') {
+                errorMessage = statusResponse.error;
+              } else if (typeof statusResponse.error === 'object') {
+                errorDetails = statusResponse.error;
+                errorMessage = statusResponse.error.message || 
+                             statusResponse.error.error || 
+                             statusResponse.error.description ||
+                             JSON.stringify(statusResponse.error);
+              }
+            }
+            
+            logger.error(`Task ${taskId} failed:`, {
+              status: statusResponse.status,
+              errorMessage,
+              errorDetails,
+              fullResponse: statusResponse
+            });
+            
+            // Check if this is a face detection error
+            const isFaceDetectionError = this.checkIfFaceDetectionError(errorMessage, errorDetails);
+            
+            const error = errorHandler.createError(
               `Face-swap task failed: ${errorMessage}`, 
-              'TaskFailedError', 
+              isFaceDetectionError ? 'FaceDetectionError' : 'TaskFailedError', 
               422
             );
+            
+            // Add additional context
+            error.piapiErrorDetails = errorDetails;
+            error.piapiErrorMessage = errorMessage;
+            error.isFaceDetectionError = isFaceDetectionError;
+            
+            throw error;
           }
           
           // Wait before next poll
@@ -320,6 +350,58 @@ class PiapiService {
       
       throw piapiError;
     }
+  }
+
+  /**
+   * Check if an error is related to face detection
+   * @param {string} errorMessage - Error message string
+   * @param {Object} errorDetails - Error details object
+   * @returns {boolean} - True if this is a face detection error
+   */
+  checkIfFaceDetectionError(errorMessage, errorDetails) {
+    if (!errorMessage && !errorDetails) return false;
+    
+    // Common face detection error patterns
+    const faceDetectionPatterns = [
+      'face',
+      'detection', 
+      'no face',
+      'face not found',
+      'cannot detect',
+      'no faces detected',
+      'face detection failed',
+      'unable to detect face',
+      'no human face',
+      'face recognition',
+      'низкая уверенность',
+      'лицо не найдено',
+      'лицо не обнаружено'
+    ];
+    
+    // Check error message
+    if (errorMessage) {
+      const lowerMessage = errorMessage.toLowerCase();
+      if (faceDetectionPatterns.some(pattern => lowerMessage.includes(pattern))) {
+        return true;
+      }
+    }
+    
+    // Check error details object
+    if (errorDetails && typeof errorDetails === 'object') {
+      const detailsString = JSON.stringify(errorDetails).toLowerCase();
+      if (faceDetectionPatterns.some(pattern => detailsString.includes(pattern))) {
+        return true;
+      }
+      
+      // Check specific error codes that might indicate face detection issues
+      if (errorDetails.code === 'FACE_NOT_DETECTED' || 
+          errorDetails.error_code === 'NO_FACE' ||
+          errorDetails.type === 'face_detection_error') {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   /**
