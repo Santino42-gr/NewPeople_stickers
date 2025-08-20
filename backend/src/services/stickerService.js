@@ -536,7 +536,8 @@ class StickerService {
         return await this._createStickerSetAttempt(userId, stickerBuffers, emojis, title, startTime, stickerSetAttempt);
       } catch (error) {
         const isStickerSetError = error.message.includes('STICKERSET_INVALID') || 
-                                error.message.includes('Multiple STICKERSET_INVALID errors');
+                                error.message.includes('Multiple STICKERSET_INVALID errors') ||
+                                error.message.includes('Sticker set is invalid and cannot be modified');
         
         if (isStickerSetError && stickerSetAttempt < maxStickerSetRetries) {
           logger.warn(`Sticker set creation failed (attempt ${stickerSetAttempt}), retrying with new pack name...`, {
@@ -615,7 +616,8 @@ class StickerService {
           try {
             await this.addStickerToSet(userId, packName, fileIds[i], emojis[i]);
           } catch (error) {
-            const isStickerSetInvalid = error.message.includes('STICKERSET_INVALID');
+            const isStickerSetInvalid = error.message.includes('STICKERSET_INVALID') || 
+                                      error.message.includes('Sticker set is invalid and cannot be modified');
             
             if (isStickerSetInvalid) {
               stickerSetInvalidErrors.push({
