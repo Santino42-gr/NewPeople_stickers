@@ -17,7 +17,8 @@
     "health": "curl -f http://localhost:$PORT/health || exit 1",
     "validate-env": "node -e \"require('./src/config/constants'); console.log('Environment validation passed')\"",
     "deploy:test": "npm run validate-env && npm run test:deployment",
-    "debug:piapi": "node debug-piapi.js"
+    "debug:piapi": "node debug-piapi.js",
+    "test:face-detection": "node test-face-detection-errors.js"
   },
   "keywords": [
     "telegram",
