@@ -375,7 +375,7 @@ class TelegramController {
         userId,
         stickerBuffers,
         emojis,
-        `New People Stickers - ${firstName}`
+        `Создать мемстикеры 🩵 @NewPeopleStickers_bot`
       );
       
       packName = stickerResult.packName;
@@ -458,17 +458,24 @@ class TelegramController {
         logger.warn(`Face detection failed for user ${userId} - requesting new photo`, {
           error: error.message,
           originalError: error.originalError?.message,
-          processingTime
+          piapiErrorMessage: error.piapiErrorMessage,
+          piapiErrorDetails: error.piapiErrorDetails,
+          processingTime,
+          firstName,
+          userId
         });
         
         // Send face detection error message
         await telegramService.sendMessage(chatId, MESSAGES.FACE_NOT_DETECTED);
         
-        // Log face detection failure (but don't log as generation attempt)
+        // Log face detection failure (but don't count as generation attempt to preserve user's daily limit)
         await userLimitsService.logGeneration(userId, 'face_detection_failed', {
           error: error.message,
+          piapiErrorMessage: error.piapiErrorMessage,
+          piapiErrorDetails: error.piapiErrorDetails,
           processingTime,
-          firstName
+          firstName,
+          note: 'User limit not consumed - can retry with better photo'
         });
         
         // Don't throw error - user can try again with new photo
@@ -577,26 +584,25 @@ class TelegramController {
             error: piapiError.message,
             templateId: template.id,
             templateUrl: template.imageUrl,
-            errorDetails: piapiError.response?.data || piapiError.message,
+            errorDetails: piapiError.piapiErrorDetails || piapiError.response?.data,
             batchIndex,
-            templateIndex
+            templateIndex,
+            errorName: piapiError.name,
+            isFaceDetectionError: piapiError.isFaceDetectionError
           });
           
-          // Check if it's a face detection issue
-          const isFaceDetectionError = piapiError.message && (
-            piapiError.message.toLowerCase().includes('face') || 
-            piapiError.message.toLowerCase().includes('detection') ||
-            piapiError.message.toLowerCase().includes('no face') ||
-            piapiError.response?.data?.error?.toLowerCase()?.includes('face') ||
-            piapiError.response?.status === 400
-          );
+          // Check if it's a face detection error (now properly detected in piapiService)
+          const isFaceDetectionError = piapiError.name === 'FaceDetectionError' || 
+                                     piapiError.isFaceDetectionError === true;
           
           if (isFaceDetectionError) {
             logger.error(`Face detection failed for template ${template.id}`, {
               userId,
               templateId: template.id,
               isFirstTemplate: batchIndex === 0 && templateIndex === 0,
-              error: piapiError.message
+              error: piapiError.message,
+              piapiErrorMessage: piapiError.piapiErrorMessage,
+              piapiErrorDetails: piapiError.piapiErrorDetails
             });
             
             // If this is the first template and face detection failed,
@@ -605,11 +611,13 @@ class TelegramController {
               const faceDetectionError = new Error('Face detection failed on user photo');
               faceDetectionError.name = 'FaceDetectionError';
               faceDetectionError.originalError = piapiError;
+              faceDetectionError.piapiErrorMessage = piapiError.piapiErrorMessage;
+              faceDetectionError.piapiErrorDetails = piapiError.piapiErrorDetails;
               throw faceDetectionError;
             }
             
             // For other templates, continue with fallback but log the issue
-            logger.warn(`Face detection failed for template ${template.id}, using fallback`);
+            logger.warn(`Face detection failed for template ${template.id}, using fallback - continuing with other templates`);
           }
           
           // Fallback processing - use original meme instead of user photo

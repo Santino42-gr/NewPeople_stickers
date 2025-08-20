@@ -129,7 +129,7 @@ class StickerService {
    * @param {string} title - Display title for the pack
    * @returns {Promise<boolean>} - Success status
    */
-  async createNewStickerSet(userId, packName, firstStickerFileId, emoji = '😄', title = 'New People Sticker Pack') {
+  async createNewStickerSet(userId, packName, firstStickerFileId, emoji = '😄', title = 'Создать мемстикеры 🩵 @NewPeopleStickers_bot') {
     if (!this.isServiceConfigured()) {
       throw errorHandler.createError('Sticker service not configured', 'ConfigurationError', 500);
     }
@@ -458,7 +458,7 @@ class StickerService {
    * @param {string} title - Pack title
    * @returns {Promise<Object>} - Pack creation result
    */
-  async createCompleteStickerPack(userId, stickerBuffers, emojis, title = 'New People Sticker Pack') {
+  async createCompleteStickerPack(userId, stickerBuffers, emojis, title = 'Создать мемстикеры 🩵 @NewPeopleStickers_bot') {
     if (!this.isServiceConfigured()) {
       throw errorHandler.createError('Sticker service not configured', 'ConfigurationError', 500);
     }
