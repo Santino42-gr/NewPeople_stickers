@@ -332,6 +332,99 @@ class TelegramService {
   }
 
   /**
+   * Edit existing message text
+   * @param {number} chatId - Chat ID
+   * @param {number} messageId - Message ID to edit
+   * @param {string} text - New message text
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} - Edited message object from Telegram
+   */
+  async editMessage(chatId, messageId, text, options = {}) {
+    if (!this.isConfigured()) {
+      throw errorHandler.createError('Telegram service not configured', 'ConfigurationError', 500);
+    }
+
+    // Validate inputs
+    const chatIdValidation = validators.isValidChatId(chatId);
+    if (!chatIdValidation.valid) {
+      throw errorHandler.createError(chatIdValidation.error, 'ValidationError', 400);
+    }
+
+    if (!messageId || !Number.isInteger(messageId)) {
+      throw errorHandler.createError('Valid message ID is required', 'ValidationError', 400);
+    }
+
+    if (!text || typeof text !== 'string') {
+      throw errorHandler.createError('Message text is required', 'ValidationError', 400);
+    }
+
+    if (text.length > 4096) {
+      throw errorHandler.createError('Message text too long (max 4096 characters)', 'ValidationError', 400);
+    }
+
+    const startTime = Date.now();
+    
+    try {
+      // Default options for edited messages
+      const defaultOptions = {
+        parse_mode: 'HTML'
+      };
+
+      const messageOptions = { ...defaultOptions, ...options };
+
+      logger.info(`Editing message ${messageId} in chat ${chatId}`, {
+        textLength: text.length,
+        parseMode: messageOptions.parse_mode,
+        hasReplyMarkup: !!messageOptions.reply_markup
+      });
+
+      const result = await errorHandler.safeExecuteWithRetries(
+        async () => await this.bot.editMessageText(text, {
+          chat_id: chatId,
+          message_id: messageId,
+          ...messageOptions
+        }),
+        null,
+        2
+      );
+      
+      const duration = Date.now() - startTime;
+      logger.logApiCall('Telegram', 'editMessageText', duration, true);
+      
+      return result;
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.logApiCall('Telegram', 'editMessageText', duration, false);
+      
+      // Handle specific Telegram errors
+      if (error.code === 400 && error.description?.includes('message is not modified')) {
+        // Message content is the same - this is ok, just return existing message
+        logger.info(`Message ${messageId} not modified (content same)`);
+        return { message_id: messageId };
+      }
+
+      if (error.code === 400 && (
+        error.description?.includes('message to edit not found') || 
+        error.description?.includes('message can\'t be edited')
+      )) {
+        // Message can't be edited anymore - log warning but don't throw
+        logger.warn(`Cannot edit message ${messageId}: ${error.description}`);
+        return { message_id: messageId };
+      }
+      
+      const telegramError = errorHandler.handleTelegramError(error, {
+        chatId,
+        messageId,
+        textLength: text.length,
+        method: 'editMessageText'
+      });
+      
+      throw telegramError;
+    }
+  }
+
+  /**
    * Send photo to a chat
    * @param {number} chatId - Chat ID to send photo to
    * @param {Buffer} photoBuffer - Photo buffer

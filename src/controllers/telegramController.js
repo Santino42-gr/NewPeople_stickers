@@ -269,8 +269,12 @@ class TelegramController {
     try {
       logger.info(`Starting sticker pack generation for user ${userId}`);
       
-      // Send processing started message
-      await telegramService.sendMessage(chatId, MESSAGES.PROCESSING_STARTED);
+      // Send initial progress message and save message ID for editing
+      const progressMessage = await telegramService.sendMessage(
+        chatId, 
+        MESSAGES.PROCESSING_PROGRESS(0, getAllTemplates().length)
+      );
+      const progressMessageId = progressMessage.message_id;
       
       // Step 1: Download and process user photo
       logger.info(`Processing user photo: ${userPhotoFileId}`);
@@ -318,14 +322,28 @@ class TelegramController {
           }
         });
         
-        // Send progress update
-        const progress = Math.round(((batchIndex + 1) / totalBatches) * 100);
-        if (progress % 25 === 0 || batchIndex === totalBatches - 1) {
-          await telegramService.sendMessage(
-            chatId, 
-            `🎨 Прогресс обработки: ${progress}% (${processedStickers}/${templates.length} стикеров готово)`
+        // Update progress in the same message
+        try {
+          await telegramService.editMessage(
+            chatId,
+            progressMessageId,
+            MESSAGES.PROCESSING_PROGRESS(processedStickers, templates.length)
           );
+        } catch (editError) {
+          // If edit fails, log warning but continue
+          logger.warn(`Failed to edit progress message: ${editError.message}`);
         }
+      }
+      
+      // Update to final stage: creating pack
+      try {
+        await telegramService.editMessage(
+          chatId,
+          progressMessageId,
+          MESSAGES.CREATING_PACK
+        );
+      } catch (editError) {
+        logger.warn(`Failed to edit to creating pack message: ${editError.message}`);
       }
       
       // Step 4: Check if we have enough stickers
