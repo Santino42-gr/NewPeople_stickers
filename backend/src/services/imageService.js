@@ -452,30 +452,32 @@ class ImageService {
   }
 
   /**
-   * Load static sticker from assets directory
-   * @param {string} fileName - Name of the static sticker file
+   * Load static sticker from URL
+   * @param {string} imageUrl - URL of the static sticker
+   * @param {string} stickerName - Name for logging purposes
    * @returns {Promise<Buffer>} - Optimized static sticker buffer
    */
-  async loadStaticStickerFromAssets(fileName) {
+  async loadStaticStickerFromUrl(imageUrl, stickerName = 'static sticker') {
     const startTime = Date.now();
     
     try {
-      logger.info(`Loading static sticker from assets: ${fileName}`);
+      logger.info(`Loading static sticker from URL: ${stickerName}`, { imageUrl });
 
-      // Construct path to assets directory (go up from backend to root, then to assets/memes)
-      const assetsPath = path.join(__dirname, '..', '..', 'assets', 'memes', fileName);
-      
-      logger.info(`Loading static sticker from path: ${assetsPath}`);
-      
-      // Check if file exists
-      try {
-        await fs.access(assetsPath);
-      } catch (error) {
-        throw errorHandler.createError(`Static sticker file not found: ${fileName}`, 'FileNotFoundError', 404);
-      }
+      // Download the image with retry logic
+      const response = await errorHandler.safeExecuteWithRetries(
+        async () => await axios.get(imageUrl, {
+          responseType: 'arraybuffer',
+          timeout: CONFIG.API_TIMEOUT,
+          maxContentLength: CONFIG.MAX_IMAGE_SIZE,
+          headers: {
+            'User-Agent': 'NewPeopleStickers Bot 1.0'
+          }
+        }),
+        null,
+        3
+      );
 
-      // Read the file
-      const imageBuffer = await fs.readFile(assetsPath);
+      const imageBuffer = Buffer.from(response.data);
       
       // Optimize for stickers
       const optimizedBuffer = await this.optimizeForStickers(imageBuffer, {
@@ -486,8 +488,9 @@ class ImageService {
 
       const duration = Date.now() - startTime;
       
-      logger.info(`Static sticker loaded and optimized: ${fileName}`, {
-        fileName,
+      logger.info(`Static sticker loaded and optimized: ${stickerName}`, {
+        stickerName,
+        imageUrl,
         inputSize: imageBuffer.length,
         outputSize: optimizedBuffer.length,
         duration
@@ -497,8 +500,9 @@ class ImageService {
 
     } catch (error) {
       const duration = Date.now() - startTime;
-      logger.error(`Failed to load static sticker: ${fileName}`, {
+      logger.error(`Failed to load static sticker: ${stickerName}`, {
         error: error.message,
+        imageUrl,
         duration
       });
       throw error;
