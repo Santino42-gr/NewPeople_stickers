@@ -360,7 +360,27 @@ class TelegramController {
         successMessage += `\n\n⚠️ Внимание: добавлено ${finalStickerCount} из ${uploadedStickers} стикеров. Некоторые стикеры могли быть дубликатами.`;
       }
       
-      await telegramService.sendMessage(chatId, successMessage);
+      // Create inline keyboard with both pack link and share buttons
+      const inlineKeyboard = {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: '📦 Открыть стикер-пак',
+                url: packUrl
+              }
+            ],
+            [
+              {
+                text: '🚀 Поделиться с друзьями',
+                switch_inline_query: `Посмотрите мой персональный стикер-пак! ${packUrl}`
+              }
+            ]
+          ]
+        }
+      };
+      
+      await telegramService.sendMessage(chatId, successMessage, inlineKeyboard);
       
       // Log generation completion
       await userLimitsService.logGeneration(userId, 'completed', {
