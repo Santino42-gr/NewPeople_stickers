@@ -15,9 +15,9 @@ class Validators {
       return { valid: false, error: 'User ID is required' };
     }
 
-    // Telegram user IDs are positive integers
+    // Telegram user IDs are positive 64-bit integers
     const numericId = parseInt(userId, 10);
-    if (isNaN(numericId) || numericId <= 0 || numericId > 2147483647) {
+    if (isNaN(numericId) || numericId <= 0 || numericId > Number.MAX_SAFE_INTEGER) {
       return { valid: false, error: 'Invalid user ID format' };
     }
 
@@ -32,9 +32,9 @@ class Validators {
       return { valid: false, error: 'Chat ID is required' };
     }
 
-    // Chat IDs can be negative (for groups) or positive (for users)
+    // Chat IDs can be negative (for groups) or positive (for users) - 64-bit integers
     const numericId = parseInt(chatId, 10);
-    if (isNaN(numericId) || Math.abs(numericId) > 2147483647) {
+    if (isNaN(numericId) || Math.abs(numericId) > Number.MAX_SAFE_INTEGER) {
       return { valid: false, error: 'Invalid chat ID format' };
     }
 
