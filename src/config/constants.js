@@ -336,9 +336,9 @@ const LOG_CATEGORIES = {
 
 // Environment validation
 const REQUIRED_ENV_VARS = [
-  'BOT_TOKEN',
+  'TELEGRAM_BOT_TOKEN',
   'PIAPI_API_KEY',
-  'WEBHOOK_URL'
+  'TELEGRAM_WEBHOOK_URL'
 ];
 
 // Rate limiting constants

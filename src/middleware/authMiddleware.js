@@ -23,7 +23,14 @@ class AuthMiddleware {
   validateEnvironment() {
     const missingVars = REQUIRED_ENV_VARS.filter(varName => {
       const value = process.env[varName];
-      return !value || value === `your_${varName.toLowerCase()}`;
+      if (!value) return true;
+      
+      // Check for placeholder values
+      if (varName === 'TELEGRAM_BOT_TOKEN' && value === 'your_telegram_bot_token') return true;
+      if (varName === 'PIAPI_API_KEY' && value === 'your_piapi_api_key') return true;
+      if (varName === 'TELEGRAM_WEBHOOK_URL' && value.includes('your-domain.railway.app')) return true;
+      
+      return false;
     });
 
     if (missingVars.length > 0) {
