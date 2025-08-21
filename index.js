@@ -11,6 +11,7 @@ require('dotenv').config();
 // Import controllers and utilities
 const telegramController = require('./src/controllers/telegramController');
 const healthController = require('./src/controllers/healthController');
+const statsController = require('./src/controllers/statsController');
 const errorHandler = require('./src/utils/errorHandler');
 const logger = require('./src/utils/logger');
 
@@ -113,6 +114,22 @@ app.get('/ready',
 app.get('/metrics', 
   rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
   errorHandler.asyncHandler(healthController.metricsCheck.bind(healthController))
+);
+
+// Statistics endpoints
+app.get('/api/stats', 
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  errorHandler.asyncHandler(statsController.getStats.bind(statsController))
+);
+
+app.get('/api/stats/user/:userId', 
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  errorHandler.asyncHandler(statsController.getUserStats.bind(statsController))
+);
+
+app.get('/api/stats/health', 
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  errorHandler.asyncHandler(statsController.getStatsHealth.bind(statsController))
 );
 
 // Admin/API routes (if needed in the future)
@@ -291,7 +308,11 @@ app.get('/', (req, res) => {
     endpoints: {
       webhook: '/webhook',
       health: '/health',
-      ready: '/ready'
+      ready: '/ready',
+      metrics: '/metrics',
+      stats: '/api/stats',
+      statsHealth: '/api/stats/health',
+      userStats: '/api/stats/user/:userId'
     },
     timestamp: new Date().toISOString()
   });
