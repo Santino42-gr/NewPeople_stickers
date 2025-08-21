@@ -114,6 +114,47 @@ STATUS_CHECK_INTERVAL=3000
 
 ---
 
+## 📊 Statistics API (Новое!)
+
+### Статистика использования бота
+
+Система статистики предоставляет аналитику через REST API:
+
+**Endpoints:**
+- `GET /api/stats` - общая статистика бота
+- `GET /api/stats/user/:userId` - статистика конкретного пользователя  
+- `GET /api/stats/health` - проверка работоспособности
+
+**Тестирование:**
+```bash
+# Общая статистика
+curl http://localhost:3000/api/stats
+
+# Статистика пользователя
+curl http://localhost:3000/api/stats/user/123456789
+
+# Health check
+curl http://localhost:3000/api/stats/health
+```
+
+**Пример ответа:**
+```json
+{
+  "success": true,
+  "data": {
+    "totalUsers": 7,
+    "totalGenerations": 7,
+    "dailyGenerations": 13,
+    "successRate": 41.94,
+    "generatedAt": "2025-08-21T14:02:09.179Z"
+  }
+}
+```
+
+**📋 Подробнее**: [STATISTICS.md](./STATISTICS.md)
+
+---
+
 ## 🧪 Тестирование всех API
 
 ### Запуск всех тестов:
@@ -135,6 +176,9 @@ node test-deployment.js
 
 # База данных (юнит-тесты)
 node tests/userLimits-test.js
+
+# Статистика API
+curl http://localhost:3000/api/stats
 ```
 
 ---
