@@ -2,3 +2,6 @@ cd ~/Library/Mobile\ Documents/com~apple~CloudDocs/AIronLab/New_people_scickers
 1 - "When generating code, always reference the markdown documentation inside the `docs/` directory."
 2 - "Use the guidelines in `docs/backend.md` for backend development"
 3 - "Use the guidelines in `docs/frontend.md` for frontend development"
+4 - "Use the guidelines in `docs/design.md` for design development"
+5 - "Use the guidelines in `docs/QA.md` for QA development"
+6 - "Use the guidelines in `docs/devops.md` for devops development"
