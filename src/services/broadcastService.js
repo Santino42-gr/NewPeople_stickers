@@ -44,7 +44,7 @@ class BroadcastService {
         throw errorHandler.createError('Broadcast service not configured', 'ConfigurationError', 500);
       }
 
-      const { name, messageText, imageBuffer, imageCaption, campaignType, createdBy } = campaignData;
+      const { name, messageText, imageBuffer, imageUrl: providedImageUrl, imageCaption, campaignType, createdBy } = campaignData;
 
       // Validate campaign data
       if (!name || typeof name !== 'string') {
@@ -59,7 +59,7 @@ class BroadcastService {
         throw errorHandler.createError('Message text is required for text campaigns', 'ValidationError', 400);
       }
 
-      if ((campaignType === 'image_only' || campaignType === 'text_and_image') && !imageBuffer) {
+      if ((campaignType === 'image_only' || campaignType === 'text_and_image') && !imageBuffer && !providedImageUrl) {
         throw errorHandler.createError('Image is required for image campaigns', 'ValidationError', 400);
       }
 
@@ -67,14 +67,17 @@ class BroadcastService {
         campaignType,
         hasText: !!messageText,
         hasImage: !!imageBuffer,
+        hasImageUrl: !!providedImageUrl,
         createdBy
       });
 
       let imageUrl = null;
       
-      // Store image if provided
+      // Store image if provided as buffer, or use provided URL
       if (imageBuffer) {
         imageUrl = await this.storeImageFile(imageBuffer, name);
+      } else if (providedImageUrl) {
+        imageUrl = providedImageUrl;
       }
 
       // Get total number of users for recipients count
@@ -251,7 +254,14 @@ class BroadcastService {
       let imageBuffer = null;
       if (campaign.image_url && (campaign.campaign_type === 'image_only' || campaign.campaign_type === 'text_and_image')) {
         try {
-          imageBuffer = await this.loadImageFile(campaign.image_url);
+          // Check if it's a local file path or external URL
+          if (campaign.image_url.startsWith('http://') || campaign.image_url.startsWith('https://')) {
+            // External URL - download the image
+            imageBuffer = await this.downloadImageFromUrl(campaign.image_url);
+          } else {
+            // Local file path
+            imageBuffer = await this.loadImageFile(campaign.image_url);
+          }
         } catch (error) {
           logger.error(`Failed to load image for campaign ${campaignId}:`, error);
           // Continue without image for text_and_image campaigns
@@ -569,6 +579,54 @@ class BroadcastService {
     } catch (error) {
       logger.error('Failed to store image file:', error);
       throw new Error(`Failed to store image: ${error.message}`);
+    }
+  }
+
+  /**
+   * Download image from URL
+   * @param {string} imageUrl - Image URL
+   * @returns {Promise<Buffer>} - Image buffer
+   * @private
+   */
+  async downloadImageFromUrl(imageUrl) {
+    try {
+      const https = require('https');
+      const http = require('http');
+      
+      return new Promise((resolve, reject) => {
+        const client = imageUrl.startsWith('https:') ? https : http;
+        
+        const request = client.get(imageUrl, (response) => {
+          if (response.statusCode !== 200) {
+            reject(new Error(`Failed to download image: ${response.statusCode}`));
+            return;
+          }
+          
+          const chunks = [];
+          response.on('data', (chunk) => chunks.push(chunk));
+          response.on('end', () => {
+            const buffer = Buffer.concat(chunks);
+            logger.info(`Downloaded image from URL: ${imageUrl}`, {
+              size: buffer.length,
+              contentType: response.headers['content-type']
+            });
+            resolve(buffer);
+          });
+        });
+        
+        request.on('error', (error) => {
+          reject(new Error(`Failed to download image: ${error.message}`));
+        });
+        
+        request.setTimeout(30000, () => {
+          request.destroy();
+          reject(new Error('Image download timeout'));
+        });
+      });
+      
+    } catch (error) {
+      logger.error('Failed to download image from URL:', error);
+      throw new Error(`Image download failed: ${error.message}`);
     }
   }
 

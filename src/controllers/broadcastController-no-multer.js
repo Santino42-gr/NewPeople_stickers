@@ -50,7 +50,7 @@ class BroadcastController {
         });
       }
 
-      const { name, messageText, campaignType, imageBase64, imageCaption } = req.body;
+      const { name, messageText, campaignType, imageBase64, imageUrl, imageCaption } = req.body;
       const createdBy = req.user?.id || req.headers['x-admin-user'] || 'api';
 
       // Validation
@@ -93,21 +93,45 @@ class BroadcastController {
 
       // Validate image for image campaigns
       let imageBuffer = null;
+      let imageUrlToStore = null;
+      
       if (campaignType === 'image_only' || campaignType === 'text_and_image') {
-        if (!imageBase64) {
+        if (!imageBase64 && !imageUrl) {
           return res.status(400).json({
-            error: 'Image is required for image campaigns',
+            error: 'Image is required for image campaigns. Provide either imageBase64 or imageUrl',
             code: 'MISSING_IMAGE'
           });
         }
 
-        try {
-          imageBuffer = this.processBase64Image(imageBase64);
-        } catch (error) {
+        if (imageBase64 && imageUrl) {
           return res.status(400).json({
-            error: `Invalid image: ${error.message}`,
-            code: 'INVALID_IMAGE'
+            error: 'Provide either imageBase64 or imageUrl, not both',
+            code: 'CONFLICTING_IMAGE_SOURCES'
           });
+        }
+
+        if (imageBase64) {
+          try {
+            imageBuffer = this.processBase64Image(imageBase64);
+          } catch (error) {
+            return res.status(400).json({
+              error: `Invalid image: ${error.message}`,
+              code: 'INVALID_IMAGE'
+            });
+          }
+        }
+
+        if (imageUrl) {
+          // Validate URL format
+          try {
+            new URL(imageUrl);
+            imageUrlToStore = imageUrl;
+          } catch (error) {
+            return res.status(400).json({
+              error: 'Invalid image URL format',
+              code: 'INVALID_IMAGE_URL'
+            });
+          }
         }
       }
 
@@ -124,6 +148,7 @@ class BroadcastController {
         name: name.trim(),
         messageText: messageText ? messageText.trim() : null,
         imageBuffer,
+        imageUrl: imageUrlToStore,
         imageCaption: imageCaption ? imageCaption.trim() : null,
         campaignType,
         createdBy
@@ -547,9 +572,10 @@ class BroadcastController {
         healthy: true,
         configured: isConfigured,
         recentCampaignsCount: recentCampaigns.length,
-        imageUploadMethod: 'Base64 (no multer dependency)',
+        imageUploadMethod: 'Base64 and URL (no multer dependency)',
         supportedFormats: ['PNG', 'JPEG'],
         maxImageSize: '10MB',
+        supportedSources: ['base64', 'url'],
         timestamp: new Date().toISOString()
       });
 
