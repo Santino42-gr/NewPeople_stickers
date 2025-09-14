@@ -12,7 +12,7 @@ require('dotenv').config();
 const telegramController = require('./src/controllers/telegramController');
 const healthController = require('./src/controllers/healthController');
 const statsController = require('./src/controllers/statsController');
-const broadcastController = require('./src/controllers/broadcastController');
+const broadcastController = require('./src/controllers/broadcastController-no-multer');
 const errorHandler = require('./src/utils/errorHandler');
 const logger = require('./src/utils/logger');
 
