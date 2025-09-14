@@ -12,6 +12,7 @@ require('dotenv').config();
 const telegramController = require('./src/controllers/telegramController');
 const healthController = require('./src/controllers/healthController');
 const statsController = require('./src/controllers/statsController');
+const broadcastController = require('./src/controllers/broadcastController');
 const errorHandler = require('./src/utils/errorHandler');
 const logger = require('./src/utils/logger');
 
@@ -288,6 +289,43 @@ app.get('/admin/piapi-auth-test',
   }
 );
 
+// Broadcast management endpoints
+app.post('/admin/broadcast/create',
+  broadcastController.getUploadMiddleware(),
+  ...authMiddleware.createApiSecurityMiddleware(),
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  errorHandler.asyncHandler(broadcastController.createCampaign)
+);
+
+app.post('/admin/broadcast/:campaignId/start',
+  ...authMiddleware.createApiSecurityMiddleware(),
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  errorHandler.asyncHandler(broadcastController.startCampaign)
+);
+
+app.get('/admin/broadcast/:campaignId/status',
+  ...authMiddleware.createApiSecurityMiddleware(),
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  errorHandler.asyncHandler(broadcastController.getCampaignStatus)
+);
+
+app.get('/admin/broadcast/list',
+  ...authMiddleware.createApiSecurityMiddleware(),
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  errorHandler.asyncHandler(broadcastController.listCampaigns)
+);
+
+app.post('/admin/broadcast/:campaignId/cancel',
+  ...authMiddleware.createApiSecurityMiddleware(),
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  errorHandler.asyncHandler(broadcastController.cancelCampaign)
+);
+
+app.get('/admin/broadcast/health',
+  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
+  errorHandler.asyncHandler(broadcastController.getSystemHealth)
+);
+
 // Reset rate limits endpoint (development only)
 if (process.env.NODE_ENV === 'development') {
   app.post('/dev/reset-rate-limits',
@@ -312,7 +350,15 @@ app.get('/', (req, res) => {
       metrics: '/metrics',
       stats: '/api/stats',
       statsHealth: '/api/stats/health',
-      userStats: '/api/stats/user/:userId'
+      userStats: '/api/stats/user/:userId',
+      broadcast: {
+        create: '/admin/broadcast/create',
+        start: '/admin/broadcast/:campaignId/start',
+        status: '/admin/broadcast/:campaignId/status',
+        list: '/admin/broadcast/list',
+        cancel: '/admin/broadcast/:campaignId/cancel',
+        health: '/admin/broadcast/health'
+      }
     },
     timestamp: new Date().toISOString()
   });
