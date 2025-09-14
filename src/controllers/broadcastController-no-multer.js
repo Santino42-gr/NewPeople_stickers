@@ -50,7 +50,7 @@ class BroadcastController {
         });
       }
 
-      const { name, messageText, campaignType } = req.body;
+      const { name, messageText, campaignType, imageBase64, imageCaption } = req.body;
       const createdBy = req.user?.id || req.headers['x-admin-user'] || 'api';
 
       // Validation
@@ -68,36 +68,64 @@ class BroadcastController {
         });
       }
 
-      // For now, only support text_only campaigns without multer
-      if (campaignType !== 'text_only') {
+      // Validate campaign type
+      if (!['text_only', 'image_only', 'text_and_image'].includes(campaignType)) {
         return res.status(400).json({
-          error: 'Only text_only campaigns are supported without multer',
-          code: 'UNSUPPORTED_CAMPAIGN_TYPE'
+          error: 'Invalid campaign type. Must be: text_only, image_only, or text_and_image',
+          code: 'INVALID_CAMPAIGN_TYPE'
         });
       }
 
       // Validate message text for text campaigns
-      if (!messageText || typeof messageText !== 'string' || messageText.trim().length === 0) {
+      if (campaignType !== 'image_only' && (!messageText || typeof messageText !== 'string' || messageText.trim().length === 0)) {
         return res.status(400).json({
           error: 'Message text is required for text campaigns',
           code: 'MISSING_MESSAGE_TEXT'
         });
       }
 
-      if (messageText.length > 4096) {
+      if (messageText && messageText.length > 4096) {
         return res.status(400).json({
           error: 'Message text too long (max 4096 characters)',
           code: 'MESSAGE_TOO_LONG'
         });
       }
 
-      // Create campaign (text-only)
+      // Validate image for image campaigns
+      let imageBuffer = null;
+      if (campaignType === 'image_only' || campaignType === 'text_and_image') {
+        if (!imageBase64) {
+          return res.status(400).json({
+            error: 'Image is required for image campaigns',
+            code: 'MISSING_IMAGE'
+          });
+        }
+
+        try {
+          imageBuffer = this.processBase64Image(imageBase64);
+        } catch (error) {
+          return res.status(400).json({
+            error: `Invalid image: ${error.message}`,
+            code: 'INVALID_IMAGE'
+          });
+        }
+      }
+
+      // Validate image caption length
+      if (imageCaption && imageCaption.length > 1024) {
+        return res.status(400).json({
+          error: 'Image caption too long (max 1024 characters)',
+          code: 'CAPTION_TOO_LONG'
+        });
+      }
+
+      // Create campaign
       const campaign = await broadcastService.createCampaign({
         name: name.trim(),
-        messageText: messageText.trim(),
-        imageBuffer: null,
-        imageCaption: null,
-        campaignType: 'text_only',
+        messageText: messageText ? messageText.trim() : null,
+        imageBuffer,
+        imageCaption: imageCaption ? imageCaption.trim() : null,
+        campaignType,
         createdBy
       });
 
@@ -442,6 +470,58 @@ class BroadcastController {
   }
 
   /**
+   * Process base64 image data
+   * @param {string} imageBase64 - Base64 image data
+   * @returns {Buffer} - Image buffer
+   */
+  processBase64Image(imageBase64) {
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      throw new Error('Image data is required');
+    }
+
+    // Check if it's a data URL
+    const dataUrlMatch = imageBase64.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/);
+    if (!dataUrlMatch) {
+      throw new Error('Invalid image format. Must be PNG or JPEG with data URL format');
+    }
+
+    const [, imageType, base64Data] = dataUrlMatch;
+    
+    // Validate image type
+    if (!['png', 'jpeg', 'jpg'].includes(imageType.toLowerCase())) {
+      throw new Error('Unsupported image type. Only PNG and JPEG are allowed');
+    }
+
+    let buffer;
+    try {
+      buffer = Buffer.from(base64Data, 'base64');
+    } catch (error) {
+      throw new Error('Invalid base64 data');
+    }
+
+    // Check file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (buffer.length > maxSize) {
+      throw new Error(`Image too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB`);
+    }
+
+    // Minimum size check (1KB)
+    if (buffer.length < 1024) {
+      throw new Error('Image too small. Minimum size is 1KB');
+    }
+
+    // Basic image header validation
+    const isPNG = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
+    const isJPEG = buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
+    
+    if (!isPNG && !isJPEG) {
+      throw new Error('Invalid image file. File header does not match PNG or JPEG format');
+    }
+
+    return buffer;
+  }
+
+  /**
    * Get broadcast system health and statistics
    */
   async getSystemHealth(req, res) {
@@ -467,7 +547,9 @@ class BroadcastController {
         healthy: true,
         configured: isConfigured,
         recentCampaignsCount: recentCampaigns.length,
-        note: 'Image upload disabled (no multer dependency)',
+        imageUploadMethod: 'Base64 (no multer dependency)',
+        supportedFormats: ['PNG', 'JPEG'],
+        maxImageSize: '10MB',
         timestamp: new Date().toISOString()
       });
 
