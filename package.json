@@ -18,8 +18,7 @@
     "validate-env": "node -e \"require('./src/config/constants'); console.log('Environment validation passed')\"",
     "deploy:test": "npm run validate-env && npm run test:deployment",
     "debug:piapi": "node debug-piapi.js",
-    "test:face-detection": "node test-face-detection-errors.js",
-    "test:broadcast": "node test-broadcast.js"
+    "test:face-detection": "node test-face-detection-errors.js"
   },
   "keywords": [
     "telegram",
