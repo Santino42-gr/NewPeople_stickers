@@ -39,9 +39,9 @@ RUN mkdir -p /app/logs && chown bot:nodejs /app/logs
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:' + process.env.PORT + '/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+# Health check - simplified for Railway deployment
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || '3000') + '/ready', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Switch to non-root user
 USER bot

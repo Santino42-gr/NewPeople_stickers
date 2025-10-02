@@ -15,6 +15,7 @@
     "build": "echo 'Build step completed (no build required for Node.js)'",
     "postinstall": "echo 'Dependencies installed successfully'",
     "health": "curl -f http://localhost:$PORT/health || exit 1",
+    "test:healthcheck": "node test-healthcheck.js",
     "validate-env": "node -e \"require('./src/config/constants'); console.log('Environment validation passed')\"",
     "deploy:test": "npm run validate-env && npm run test:deployment",
     "debug:piapi": "node debug-piapi.js",
