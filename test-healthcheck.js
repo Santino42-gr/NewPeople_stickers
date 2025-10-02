@@ -65,6 +65,7 @@ async function runTests() {
   console.log('🧪 Testing healthcheck endpoints...\n');
   
   const tests = [
+    { path: '/ping', description: 'Ping Check (Railway)' },
     { path: '/ready', description: 'Ready Check' },
     { path: '/health', description: 'Health Check' },
     { path: '/metrics', description: 'Metrics Check' },

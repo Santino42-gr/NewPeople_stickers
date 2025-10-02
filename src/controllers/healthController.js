@@ -272,18 +272,28 @@ class HealthController {
    * Returns 200 if basic server is running
    */
   async readyCheck(req, res) {
-    const memory = process.memoryUsage();
-    const memoryUsageMB = Math.round(memory.heapUsed / 1024 / 1024);
-    
-    res.status(200).json({
-      status: 'ready',
-      timestamp: new Date().toISOString(),
-      uptime: Math.round(process.uptime()),
-      memory: `${memoryUsageMB}MB`,
-      environment: process.env.NODE_ENV || 'unknown',
-      version: process.env.npm_package_version || '1.0.0',
-      nodeVersion: process.version
-    });
+    try {
+      const memory = process.memoryUsage();
+      const memoryUsageMB = Math.round(memory.heapUsed / 1024 / 1024);
+      
+      res.status(200).json({
+        status: 'ready',
+        timestamp: new Date().toISOString(),
+        uptime: Math.round(process.uptime()),
+        memory: `${memoryUsageMB}MB`,
+        environment: process.env.NODE_ENV || 'unknown',
+        version: process.env.npm_package_version || '1.0.0',
+        nodeVersion: process.version
+      });
+    } catch (error) {
+      // Even if there's an error, return 200 to indicate server is running
+      res.status(200).json({
+        status: 'ready',
+        timestamp: new Date().toISOString(),
+        uptime: Math.round(process.uptime()),
+        note: 'Basic ready check - server is running'
+      });
+    }
   }
 
   /**

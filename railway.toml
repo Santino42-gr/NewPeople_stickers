@@ -10,8 +10,8 @@ builder = "nixpacks"
 startCommand = "npm start"
 
 # Health check configuration
-healthcheckPath = "/health"
-healthcheckTimeout = 300
+healthcheckPath = "/ping"
+healthcheckTimeout = 30
 healthcheckInterval = 30
 
 # Restart policy

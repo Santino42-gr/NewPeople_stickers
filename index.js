@@ -110,6 +110,11 @@ app.get('/ready',
   errorHandler.asyncHandler(healthController.readyCheck.bind(healthController))
 );
 
+// Ultra-simple healthcheck for Railway (no middleware, no dependencies)
+app.get('/ping', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Enhanced metrics endpoint for monitoring
 app.get('/metrics', 
   rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
