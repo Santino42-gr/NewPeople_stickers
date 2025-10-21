@@ -10,7 +10,7 @@ builder = "nixpacks"
 startCommand = "npm start"
 
 # Health check configuration
-healthcheckPath = "/ping"
+healthcheckPath = "/health"
 healthcheckTimeout = 30
 healthcheckInterval = 30
 

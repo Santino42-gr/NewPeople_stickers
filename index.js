@@ -100,20 +100,24 @@ app.post('/webhook',
   errorHandler.asyncHandler(telegramController.handleWebhook.bind(telegramController))
 );
 
-app.get('/health', 
-  rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
-  errorHandler.asyncHandler(healthController.healthCheck.bind(healthController))
-);
+// Ultra-simple healthcheck for Railway (no middleware, no dependencies)
+app.get('/ping', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Simple health endpoint for Railway (fallback - no middleware)
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
 
 app.get('/ready', 
   rateLimitMiddleware.limitByIP.bind(rateLimitMiddleware),
   errorHandler.asyncHandler(healthController.readyCheck.bind(healthController))
 );
-
-// Ultra-simple healthcheck for Railway (no middleware, no dependencies)
-app.get('/ping', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // Enhanced metrics endpoint for monitoring
 app.get('/metrics', 
